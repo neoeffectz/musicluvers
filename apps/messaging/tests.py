@@ -9,7 +9,9 @@ from .models import Conversation, Message
 
 
 def make_user(username):
-    return CustomUser.objects.create_user(username=username, password="pass1234")
+    from datetime import date
+    return CustomUser.objects.create_user(username=username, password="pass1234", latitude=6.52, longitude=3.38,
+                                          gender="woman", birthdate=date(1998, 5, 1))
 
 
 class IsMatchedTests(TestCase):

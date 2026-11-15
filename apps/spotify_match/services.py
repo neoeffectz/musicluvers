@@ -404,6 +404,8 @@ def discover_audience(user, min_score=MIN_DISCOVER_SCORE):
         other = score.user_b if score.user_a_id == user.id else score.user_a
         if other.id in already_swiped or not other.is_active or not _visible_to_each_other(other, user):
             continue
+        if not user.has_position:
+            break  # this person has no location yet, so nobody's Discover shows them
         km = distance.km_between(user, other)
         if distance.within_range(km, user.max_distance_km) and distance.within_range(km, other.max_distance_km):
             audience.append(str(other.id))
@@ -423,6 +425,8 @@ def _discover_candidates(user, min_score):
         other = score.user_b if score.user_a_id == user.id else score.user_a
         if other.id in already_swiped or not other.is_active or not _visible_to_each_other(user, other):
             continue
+        if not other.has_position:
+            continue  # no location = we can't tell how far away they are, so they aren't shown
         km = distance.km_between(user, other)
         if not distance.within_range(km, other.max_distance_km):
             continue  # they don't want people this far away

@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.shortcuts import redirect
 
 
 class HtmxRedirectMiddleware:
@@ -18,3 +19,24 @@ class HtmxRedirectMiddleware:
             full_page.cookies = response.cookies
             return full_page
         return response
+
+
+class FinishSignupMiddleware:
+    """Sharing your location (plus gender and birthday) is required. Until it's done, app pages send people
+    back to the "About you" step, so nobody can skip it by typing another address. (People without a
+    location would otherwise show up for everyone, everywhere, because we can't tell how far away they are.)"""
+
+    OPEN = ("/welcome/", "/logout/", "/login/", "/signup/", "/static/", "/admin/", "/api/", "/password/",
+            "/verify-email/", "/account/", "/terms/", "/privacy/", "/push/", "/sw.js", "/manifest.webmanifest",
+            "/favicon.ico")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if (user is not None and user.is_authenticated and not user.is_staff
+                and request.path != "/" and not request.path.startswith(self.OPEN)
+                and not user.finished_about_you):
+            return redirect("users:about_you")
+        return self.get_response(request)

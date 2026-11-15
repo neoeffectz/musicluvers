@@ -267,7 +267,8 @@ class LocateTests(TestCase):
 
 class ProfileDistanceTests(TestCase):
     def setUp(self):
-        self.user = CustomUser.objects.create_user(username="pd", password="pass1234")
+        self.user = CustomUser.objects.create_user(username="pd", password="pass1234", gender="woman",
+                                                   birthdate=date(1995, 5, 4), latitude=6.52, longitude=3.38)
         self.client.force_login(self.user)
 
     def test_default_is_50_km(self):
@@ -329,6 +330,9 @@ from .models import Block, Report
 
 def music_person(username, gender, preference, **extra):
     from apps.spotify_match.models import TopArtist
+    extra.setdefault("latitude", 6.52)
+    extra.setdefault("longitude", 3.38)
+    extra.setdefault("birthdate", date(1998, 5, 1))
     u = CustomUser.objects.create_user(username=username, email=f"{username}@example.com", password="pass12345!",
                                        first_name=username.title(), gender=gender, preference=preference,
                                        has_seen_taste_intro=True, **extra)
@@ -474,6 +478,7 @@ class EmailOnTests(EagerEventsMixin, TestCase):
         self.assertEqual(len(mail.outbox), 1)
         user = CustomUser.objects.get(email="vee@example.com")
         self.assertFalse(user.email_verified)
+        CustomUser.objects.filter(id=user.id).update(gender="woman", birthdate=date(1995, 5, 4), latitude=6.52, longitude=3.38)
         self.assertIn("verify-banner", self.client.get("/messages/").content.decode())
         link = re.search(r"https?://[^/\s]+(/verify-email/[^\s]+/)", mail.outbox[0].body).group(1)
         self.assertContains(self.client.get(link), "Email confirmed")
@@ -638,7 +643,7 @@ class LogoutAndInstallTests(TestCase):
 class ProfileValidationTests(TestCase):
     def setUp(self):
         self.user = CustomUser.objects.create_user(username="pv", password="x", gender="woman", preference="man",
-                                                   birthdate=date(1995, 5, 4))
+                                                   birthdate=date(1995, 5, 4), latitude=6.52, longitude=3.38)
         self.client.force_login(self.user)
 
     def test_cannot_make_yourself_under_18(self):
@@ -881,3 +886,35 @@ class PhotosOnlyTests(TestCase):
         for path in ["/welcome/about/", "/profile/tab/"]:
             page = self.client.get(path)
             self.assertContains(page, 'accept="image/jpeg,image/png,image/webp"', msg_prefix=path)
+
+
+
+class LocationRequiredTests(TestCase):
+    """Nobody uses the app without sharing their location (plus gender and birthday) first."""
+    def setUp(self):
+        self.client.post("/signup/", {"first_name": "Ada", "email": "ada@example.com", "password": "tune-lover-2026"})
+        self.user = CustomUser.objects.get(email="ada@example.com")
+
+    def test_skipping_about_you_by_typing_another_address_goes_back(self):
+        for path in ["/taste/build/", "/taste/songs/", "/dashboard/", "/matches/", "/messages/", "/profile/tab/"]:
+            self.assertRedirects(self.client.get(path), "/welcome/about/", fetch_redirect_response=False, msg_prefix=path)
+
+    def test_a_tap_without_location_turns_into_a_full_page_change(self):
+        response = self.client.get("/dashboard/tab/discover/", HTTP_HX_REQUEST="true")
+        self.assertEqual(response["HX-Redirect"], "/welcome/about/")
+
+    def test_about_you_logout_legal_and_account_pages_stay_open(self):
+        self.assertEqual(self.client.get("/welcome/about/").status_code, 200)
+        for path in ["/terms/", "/privacy/", "/account/delete/"]:
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        self.assertRedirects(self.client.post("/logout/"), "/?login=1", fetch_redirect_response=False)
+
+    def test_finishing_about_you_without_location_is_refused(self):
+        page = self.client.post("/welcome/about/", {"gender": "woman", "preference": "man", "birthdate": "1998-05-01"})
+        self.assertContains(page, "Share your location to continue", status_code=400)
+
+    def test_once_finished_the_app_opens(self):
+        CustomUser.objects.filter(id=self.user.id).update(gender="woman", birthdate=date(1998, 5, 1),
+                                                          latitude=6.52, longitude=3.38)
+        response = self.client.get("/taste/build/")
+        self.assertEqual(response.status_code, 200)

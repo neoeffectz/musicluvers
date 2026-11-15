@@ -10,6 +10,12 @@ from . import lastfm, services, taste_catalog
 
 
 def make_user(username, **extra):
+    """A user who finished "About you" (location, gender, birthday), unless a test says otherwise."""
+    from datetime import date
+    extra.setdefault("latitude", 6.52)   # Lagos
+    extra.setdefault("longitude", 3.38)
+    extra.setdefault("gender", "woman")
+    extra.setdefault("birthdate", date(1998, 5, 1))
     return CustomUser.objects.create_user(username=username, password="pass1234", **extra)
 
 
@@ -742,13 +748,15 @@ class DistanceTests(TestCase):
         self.person("ibadan2", IBADAN, "man", "woman", max_km=0)       # ~115 km, anywhere
         self.assertEqual(self.feed_names(self.ada), ["ibadan2"])
 
-    def test_anywhere_and_unknown_position(self):
+    def test_anywhere_and_people_without_a_location_are_never_shown(self):
         self.person("benin", BENIN, "man", "woman", max_km=0)
         self.person("nowhere", None, "man", "woman")
-        self.assertEqual(self.feed_names(self.ada), ["nowhere"])
+        self.assertEqual(self.feed_names(self.ada), [])
         self.ada.max_distance_km = 0
         self.ada.save()
-        self.assertEqual(self.feed_names(self.ada), ["benin", "nowhere"])
+        self.assertEqual(self.feed_names(self.ada), ["benin"])
+        nowhere = CustomUser.objects.get(username="nowhere")
+        self.assertEqual(services.discover_audience(nowhere), [])  # and they appear in nobody's Discover
 
     def test_show_people_further_away(self):
         self.person("benin", BENIN, "man", "woman", max_km=0)

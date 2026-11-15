@@ -39,6 +39,11 @@ class CustomUser(AbstractUser):
     def has_position(self):
         return self.latitude is not None and self.longitude is not None
 
+    @property
+    def finished_about_you(self):
+        """Location, gender and birthday are required before using the app (the "About you" step)."""
+        return self.has_position and bool(self.gender) and self.birthdate is not None
+
     def has_connected_taste_source(self):
         return bool(self.lastfm_username)
 

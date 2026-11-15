@@ -41,6 +41,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.users.middleware.HtmxRedirectMiddleware",  # expired login during a tap -> full login page, not inside a box
+    "apps.users.middleware.FinishSignupMiddleware",  # location + gender + birthday required before using the app
 ]
 
 # A form left open too long (or after logging in elsewhere) fails Django's security check. Show a friendly page.
