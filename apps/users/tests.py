@@ -682,7 +682,7 @@ class DeployFilesTests(TestCase):
     def test_render_blueprint_is_valid_yaml_with_both_services(self):
         from pathlib import Path
         text = (Path(__file__).resolve().parents[2] / "render.yaml").read_text()
-        for needle in ["type: web", "type: worker", "runtime: docker", "dockerCommand: celery -A config worker -B",
+        for needle in ["type: web", "runtime: docker", "key: RUN_WORKER_IN_WEB",
                        "key: FERNET_KEY", "key: VAPID_PRIVATE_KEY", "config.settings.prod"]:
             self.assertIn(needle, text)
 

@@ -1,7 +1,11 @@
 # Render Blueprint for Music Luvers (SoundMatch).
-# In Render: New + -> Blueprint -> pick this repo. Render creates both services and asks once for each
-# value marked `sync: false` (copy them from your local .env). The worker copies those values from the web
-# service, so you only type each one once.
+# In Render: New + -> Blueprint -> pick this repo. Render asks once for each value marked `sync: false`
+# (copy them from your local .env).
+#
+# Free plan: there is no separate worker service. RUN_WORKER_IN_WEB=1 makes the web service also run the
+# background jobs (match scores, notifications, emails, city lookups) — see docker-entrypoint.sh.
+# On a paid plan you can move them to their own "type: worker" service with
+# dockerCommand: celery -A config worker -B -l info --concurrency 2  (and set RUN_WORKER_IN_WEB to "0").
 #
 # Region: virginia sits next to Neon's us-east-1 database, so each database query takes ~1-2 ms instead
 # of ~340 ms. (If you later move the database to Europe, create new services in frankfurt to match —
@@ -26,9 +30,10 @@ envVarGroups:
         generateValue: true
 
 services:
-  # Website + live updates (Daphne). On start it runs migrations and collectstatic (docker-entrypoint.sh).
+  # Website + live updates (Daphne) + background jobs. On start it runs migrations and collectstatic.
   - type: web
     name: musicluvers-web
+    plan: free
     runtime: docker
     region: virginia
     dockerfilePath: ./Dockerfile
@@ -38,6 +43,8 @@ services:
       - fromGroup: musicluvers-config
       - key: PORT
         value: "10000"
+      - key: RUN_WORKER_IN_WEB      # free plan: run background jobs inside the web service
+        value: "1"
       - key: DATABASE_URL           # Neon connection string
         sync: false
       - key: REDIS_URL              # Upstash rediss:// URL
@@ -60,37 +67,3 @@ services:
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
-
-  # Background jobs: match scores, notifications, push, emails, city lookups; -B also runs the scheduler.
-  - type: worker
-    name: musicluvers-worker
-    runtime: docker
-    region: virginia
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    dockerCommand: celery -A config worker -B -l info --concurrency 2
-    autoDeploy: true
-    envVars:
-      - fromGroup: musicluvers-config
-      - key: DATABASE_URL
-        fromService: { type: web, name: musicluvers-web, envVarKey: DATABASE_URL }
-      - key: REDIS_URL
-        fromService: { type: web, name: musicluvers-web, envVarKey: REDIS_URL }
-      - key: CLOUDINARY_CLOUD_NAME
-        fromService: { type: web, name: musicluvers-web, envVarKey: CLOUDINARY_CLOUD_NAME }
-      - key: CLOUDINARY_API_KEY
-        fromService: { type: web, name: musicluvers-web, envVarKey: CLOUDINARY_API_KEY }
-      - key: CLOUDINARY_API_SECRET
-        fromService: { type: web, name: musicluvers-web, envVarKey: CLOUDINARY_API_SECRET }
-      - key: SPOTIFY_CLIENT_ID
-        fromService: { type: web, name: musicluvers-web, envVarKey: SPOTIFY_CLIENT_ID }
-      - key: SPOTIFY_CLIENT_SECRET
-        fromService: { type: web, name: musicluvers-web, envVarKey: SPOTIFY_CLIENT_SECRET }
-      - key: FERNET_KEY
-        fromService: { type: web, name: musicluvers-web, envVarKey: FERNET_KEY }
-      - key: LASTFM_API_KEY
-        fromService: { type: web, name: musicluvers-web, envVarKey: LASTFM_API_KEY }
-      - key: VAPID_PUBLIC_KEY
-        fromService: { type: web, name: musicluvers-web, envVarKey: VAPID_PUBLIC_KEY }
-      - key: VAPID_PRIVATE_KEY
-        fromService: { type: web, name: musicluvers-web, envVarKey: VAPID_PRIVATE_KEY }
