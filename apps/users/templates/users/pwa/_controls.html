@@ -1,0 +1,64 @@
+{# Profile → Notifications & app. Rendered by JS because it depends on this phone/browser. #}
+<div class="pwa-controls" id="pwa-controls">
+  <span class="content-label">Notifications &amp; app</span>
+  <div class="pwa-row" id="pwa-push"></div>
+  <div class="pwa-row" id="pwa-install"></div>
+</div>
+<script>
+(() => {
+  const push = document.getElementById('pwa-push');
+  const install = document.getElementById('pwa-install');
+  const iosSteps = `<ol class="pwa-steps"><li>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket"></i> in Safari</li>
+    <li>Choose <b>Add to Home Screen</b></li><li>Open Music Luvers from your Home Screen and come back here</li></ol>`;
+  const btn = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'pwa-btn ' + (cls || ''); b.textContent = label; b.onclick = fn; return b; };
+  const wait = (b, label) => { b.disabled = true; b.textContent = label; };
+
+  function drawPush() {
+    if (typeof window.mlPushState !== 'function') { setTimeout(drawPush, 150); return; }
+    const state = window.mlPushState();
+    push.innerHTML = '';
+    if (state === 'on') {
+      push.insertAdjacentHTML('beforeend', '<p class="pwa-status on"><i class="fa-solid fa-bell"></i> Notifications are on</p>');
+      push.append(btn('Send a test', '', async (e) => {
+        wait(e.target, 'Sending…');
+        await fetch('{% url "users:push_test" %}', { method: 'POST', headers: { 'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '' } });
+        e.target.textContent = 'Sent! Check your notifications';
+      }), btn('Turn off', 'muted', async (e) => { wait(e.target, 'Turning off…'); await window.mlDisablePush(); drawPush(); }));
+    } else if (state === 'off') {
+      push.insertAdjacentHTML('beforeend', '<p class="pwa-status">Get a buzz when you match or get a message, even when the app is closed.</p>');
+      push.append(btn('Turn on notifications', 'primary', async (e) => {
+        wait(e.target, 'Asking…');
+        try { await window.mlEnablePush(); } catch (err) { console.error(err); }
+        drawPush();
+      }));
+    } else if (state === 'blocked') {
+      push.innerHTML = `<p class="pwa-status">Notifications are blocked for this site. <b>iPhone:</b> Settings → Notifications → Music Luvers → Allow.
+        <b>Android:</b> tap the icon left of the web address → Permissions → Notifications → Allow. Then reload.</p>`;
+    } else if (state === 'ios-install-first') {
+      push.innerHTML = `<p class="pwa-status">On iPhone, notifications work once Music Luvers is on your Home Screen:</p>${iosSteps}`;
+    } else {
+      push.innerHTML = '<p class="pwa-status">This browser can\'t show notifications. Open Music Luvers in Chrome or Safari.</p>';
+    }
+  }
+
+  function drawInstall() {
+    if (typeof window.mlCanInstall !== 'function') { setTimeout(drawInstall, 150); return; }
+    install.innerHTML = '';
+    if (window.mlIsStandalone) {
+      install.innerHTML = '<p class="pwa-status on"><i class="fa-solid fa-mobile-screen"></i> You\'re using the app</p>';
+    } else if (window.mlCanInstall()) {
+      install.insertAdjacentHTML('beforeend', '<p class="pwa-status">Add Music Luvers to your phone like an app.</p>');
+      install.append(btn('Install app', 'primary', async () => {
+        if (await window.mlInstall() === 'unavailable') {
+          install.insertAdjacentHTML('beforeend', '<p class="pwa-status">Use your browser menu (⋮) → <b>Install app</b> or <b>Add to Home screen</b>.</p>');
+        }
+        drawInstall();
+      }));
+    } else if (window.mlIsIOS && window.mlPushState() !== 'ios-install-first') {
+      install.innerHTML = `<p class="pwa-status">Add Music Luvers to your Home Screen:</p>${iosSteps}`;
+    }
+  }
+  drawPush(); drawInstall();
+  document.addEventListener('ml-can-install', drawInstall);
+})();
+</script>

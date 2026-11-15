@@ -1,0 +1,22 @@
+<div class="notif-panel-head">
+  <strong>Notifications</strong>
+  <button type="button" class="notif-close" onclick="closeNotifications()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+</div>
+<div class="notif-list">
+  {% for item in items %}
+    <a href="{{ item.link }}" class="notif-item{% if item.unread %} unread{% endif %}">
+      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="">{% else %}<span class="notif-avatar"><i class="fa-solid fa-user"></i></span>{% endif %}
+      <span class="notif-body">
+        <span class="notif-text">
+          {% if item.kind == "match_created" %}<i class="fa-solid fa-heart" style="color:#ff3b30;"></i>{% else %}<i class="fa-solid fa-comment" style="color:#f3582c;"></i>{% endif %}
+          {{ item.text }}
+        </span>
+        {% if item.sub %}<span class="notif-sub">{{ item.sub }}</span>{% endif %}
+        <span class="notif-time">{{ item.ago }}</span>
+      </span>
+      {% if item.unread %}<span class="notif-dot"></span>{% endif %}
+    </a>
+  {% empty %}
+    <p class="notif-empty">Nothing yet. Matches and new messages show up here.</p>
+  {% endfor %}
+</div>

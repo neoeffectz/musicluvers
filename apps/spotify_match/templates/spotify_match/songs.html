@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Your songs - Music Luvers</title>
+  {% include "users/partials/_onboarding_head.html" %}
+  <style>
+    .prompt-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .prompt-card h2 { font-size: 15px; font-weight: 600; }
+    .song-row { display: flex; align-items: center; gap: 12px; }
+    .song-row img, .song-row .no-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: rgba(255,255,255,0.08); flex-shrink: 0; }
+    .song-row .meta { flex: 1; min-width: 0; }
+    .song-row .meta strong { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-row .meta span { font-size: 12px; color: #8e8e93; }
+    .song-pick { border: none; border-radius: 10px; padding: 6px 12px; cursor: pointer; font-family: inherit; background: rgba(255,255,255,0.1); color: #fff; }
+    .song-results { display: flex; flex-direction: column; gap: 8px; }
+    .song-results:empty { display: none; }
+  </style>
+</head>
+<body>
+  <main class="onboard">
+    {% url 'spotify_match:build_taste' as back_url %}
+    {% include "users/partials/_onboarding_steps.html" with step_number=3 back_url=back_url %}
+    <div>
+      <h1>Add a song or two</h1>
+      <p class="sub">Optional, but it gives people something to talk to you about. Same song = a better match.</p>
+    </div>
+
+    {% for p in prompts %}
+      {% include "spotify_match/partials/_prompt_card.html" %}
+    {% endfor %}
+
+    <form method="post" action="{% url 'spotify_match:songs_done' %}" class="bottom-bar">
+      {% csrf_token %}
+      <div class="bottom-bar-inner">
+        <span class="count">You can change these later</span>
+        <button type="submit" class="btn-save-profile">Start matching</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

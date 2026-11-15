@@ -1,0 +1,20 @@
+{% regroup artists by genre_label as by_genre %}
+{% for group in by_genre %}
+  <p class="grid-genre">{{ group.grouper }}</p>
+  <div class="artist-grid">
+    {% for artist in group.list %}
+      <button type="button" class="artist-tile{% if artist.external_id in picked %} picked{% endif %}" data-id="{{ artist.external_id }}"
+              hx-post="{% url 'spotify_match:taste_add' %}" hx-vals='{"artist_id": "{{ artist.external_id|escapejs }}", "toggle": "1"}'
+              hx-target="#taste-picks" hx-swap="innerHTML"
+              onclick="this.classList.toggle('picked')">
+        <span class="avatar">
+          {% if artist.image_url %}<img src="{{ artist.image_url }}" alt="" loading="lazy">{% endif %}
+          <span class="tick"><i class="fa-solid fa-check"></i></span>
+        </span>
+        {{ artist.name }}
+      </button>
+    {% endfor %}
+  </div>
+{% empty %}
+  <p class="loading">Couldn't load suggestions right now. Use the search below.</p>
+{% endfor %}

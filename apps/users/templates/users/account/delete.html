@@ -1,0 +1,13 @@
+{% extends "users/account/base.html" %}
+{% block title %}Delete your account{% endblock %}
+{% block content %}
+  <h1>Delete your account?</h1>
+  <p class="sub">This permanently deletes your profile, photos, music, matches, chats and location. It can't be undone.</p>
+  <form method="post">
+    {% csrf_token %}
+    <input type="password" name="password" class="profile-input" placeholder="Your password, to confirm" required autocomplete="current-password">
+    {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+    <button type="submit" class="btn-save-profile btn-wide danger-btn">Delete my account forever</button>
+  </form>
+  <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="link-muted">Keep my account</a>
+{% endblock %}

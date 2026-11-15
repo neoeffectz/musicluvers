@@ -1,0 +1,7 @@
+<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#222;">
+  <h2 style="color:#f3582c;margin:0 0 16px;">{{ site_name }}</h2>
+  <p>Hi {{ user.first_name|default:"there" }},</p>
+  <p>Confirm this is your email for {{ site_name }}:</p>
+  <p><a href="{{ link }}" style="display:inline-block;background:#f3582c;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold;">Confirm my email</a></p>
+  <p style="color:#777;font-size:13px;">The link works for 3 days. If you didn't sign up, you can ignore this email.</p>
+</div>

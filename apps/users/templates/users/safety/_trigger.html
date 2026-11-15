@@ -1,0 +1,4 @@
+{# "⋯" button that opens the report/block sheet for `target`. #}
+<button type="button" class="safety-trigger" onclick="openSafety('{{ target.id }}')" aria-label="Report or block {{ target.first_name|default:target.username }}">
+  <i class="fa-solid fa-ellipsis"></i>
+</button>

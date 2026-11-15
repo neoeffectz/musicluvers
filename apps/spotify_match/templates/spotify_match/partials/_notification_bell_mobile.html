@@ -1,0 +1,5 @@
+{% load notif_tags %}
+<a href="#" class="mobile-nav-item notif-bell" id="notif-bell-mobile" onclick="toggleNotifications(); return false;" aria-label="Notifications">
+  <i class="fa-solid fa-bell"></i>
+  <span class="notif-badge-slot" hx-get="{% url 'spotify_match:notifications_badge' %}" hx-trigger="notificationsChanged from:body, refreshNotifs from:body" hx-swap="innerHTML">{% unread_notifications as unread %}{% include "spotify_match/partials/_notification_badge.html" %}</span>
+</a>

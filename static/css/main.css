@@ -1,0 +1,478 @@
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans';
+  letter-spacing: 0.02em;
+  background: radial-gradient(circle at top right, #f3582c 0%, #0d0b0e 60%); 
+  color: #ffffff;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Styles */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 6%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.text-coral {
+  color: #f3582c;
+}
+
+.signup-btn {
+  background-color: #ffffff;
+  color: #110e12;
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.signup-btn:hover {
+  transform: translateY(-2px);
+  background-color: #e6e6e6;
+}
+
+/* Hero Main Layout */
+.hero-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 120px 6% 60px 6%;
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Left Hero Column */
+.hero-content {
+  flex: 1;
+  max-width: 540px;
+  padding-right: 40px;
+}
+
+.hero-title {
+  font-size: clamp(2.8rem, 5vw, 4.2rem);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  letter-spacing: -1.5px;
+}
+
+.hero-title .highlight {
+  color: #f3582c; /* Brand orange/coral */
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: #b3b3b3;
+  margin-bottom: 40px;
+}
+
+/* Music Sync CTA Button */
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 8px;
+  padding-right: 28px;
+  border-radius: 100px;
+  text-decoration: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  border-color: #f3582c; 
+}
+
+.cta-icon-wrapper {
+  background-color: #f3582c;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);
+}
+
+.spin-icon {
+  animation: spin 6s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.cta-text {
+  margin-left: 20px;
+  margin-right: 30px;
+}
+
+.cta-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+  transition: transform 0.3s ease;
+}
+
+.cta-button:hover .cta-arrow {
+  transform: translateX(5px);
+  color: #ffffff;
+}
+
+/* Right Hero Column: Interactive Card Grid */
+.hero-gallery {
+  flex: 1.2;
+  position: relative;
+  height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cards-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.profile-card {
+  position: absolute;
+  border-radius: 28px;
+  overflow: visible;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  transition: transform 0.3s ease;
+}
+
+.profile-card:hover {
+  transform: scale(1.05) translateY(-5px) !important;
+  z-index: 10 !important;
+}
+
+.profile-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 28px;
+  display: block;
+}
+
+/* Card Specific Positions & Sizes */
+.card-jastin {
+  width: 170px;
+  height: 230px;
+  top: 15%;
+  left: 5%;
+  transform: rotate(-8deg);
+  z-index: 2;
+}
+
+.card-julia {
+  width: 210px;
+  height: 280px;
+  top: 25%;
+  left: 33%;
+  transform: rotate(-10deg);
+  z-index: 5;
+  border: 2px solid rgba(243, 88, 44, 0.4); 
+}
+
+.card-sarah {
+  width: 140px;
+  height: 190px;
+  top: 18%;
+  right: -5%;
+  transform: rotate(5deg);
+  z-index: 1;
+}
+
+.card-top-right {
+  width: 160px;
+  height: 220px;
+  top: 5%;
+  right: 15%;
+  transform: rotate(12deg);
+  z-index: 3;
+}
+
+.card-sarch {
+  width: 150px;
+  height: 200px;
+  bottom: 2%;
+  left: 10%;
+  transform: rotate(6deg);
+  z-index: 4;
+}
+
+.card-marcus {
+  width: 160px;
+  height: 220px;
+  bottom: 5%;
+  right: 5%;
+  transform: rotate(-5deg);
+  z-index: 3;
+}
+
+.card-bottom-center {
+  width: 160px;
+  height: 180px;
+  bottom: -15%;
+  left: 45%;
+  transform: rotate(-5deg);
+  z-index: 2;
+}
+
+/* Music tags inside cards */
+.card-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 15px 20px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.95) 75%);
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+}
+
+.card-info h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.music-tag {
+  font-size: 0.72rem;
+  color: #f3582c; 
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Match Percentage Badge */
+.match-percentage {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #f3582c;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 50px;
+  box-shadow: 0 4px 10px rgba(29,185,84,0.4);
+}
+
+/* Now Playing Widget (SZA track visualizer) */
+.now-playing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  backdrop-filter: blur(5px);
+}
+
+.track-name {
+  font-size: 0.7rem;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Micro Audio Waves */
+.playing-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 12px;
+  height: 10px;
+}
+
+.playing-bars span {
+  display: block;
+  width: 2px;
+  background-color: #f3582c;
+  animation: bounce 0.8s ease infinite alternate;
+}
+
+.playing-bars span:nth-child(2) { animation-delay: 0.2s; }
+.playing-bars span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  from { height: 2px; }
+  to { height: 10px; }
+}
+
+/* Floating Badges styling */
+.floating-badge {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #ffffff;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+  z-index: 6;
+}
+
+.badge-vinyl {
+  background: #111111;
+  border: 1px dashed rgba(255,255,255,0.3);
+  color: #f3582c;
+}
+
+.badge-message { background: #f3582c; }
+.badge-message-blue { background: #2e82f7; }
+.badge-heart {
+  background: #f3582c;
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+}
+.badge-heart-small {
+  background: #f3582c;
+  width: 32px;
+  height: 32px;
+  font-size: 0.8rem;
+}
+
+/* Pin Badges onto specific parent card spots */
+.left-middle {
+  left: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.top-left {
+  left: -15px;
+  top: -10px;
+}
+
+.bottom-right {
+  right: -15px;
+  bottom: 20px;
+}
+
+.bottom-left {
+  left: -15px;
+  bottom: 20px;
+}
+
+/* Responsive Scaling Rules */
+@media (max-width: 992px) {
+  .hero-container {
+    flex-direction: column;
+    padding-top: 100px;
+    text-align: center;
+  }
+  
+  .hero-content {
+    padding-right: 0;
+    margin-bottom: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-gallery {
+    width: 100%;
+    height: 500px;
+    max-width: 600px;
+  }
+
+  .cards-wrapper {
+    transform: scale(0.85);
+  }
+}
+
+@media (max-width: 576px) {
+  .cards-wrapper {
+    transform: scale(0.65);
+  }
+  .hero-gallery {
+    height: 380px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin-icon, .playing-bars span {
+    animation: none;
+  }
+}
+
+
+ 
+/* ===== Phone layout fixes =====
+   In the stacked (column) layout the gallery was allowed to shrink to ~24px, so the absolutely-positioned
+   cards spilled up over the sign-up form. Keep both sections at their natural height, with clear spacing. */
+html { background: #0d0b0e; }
+body { background-repeat: no-repeat; background-color: #0d0b0e; }
+
+@media (max-width: 992px) {
+  .hero-content, .hero-gallery { flex: none; }
+  .hero-content { width: 100%; }
+}
+
+@media (max-width: 576px) {
+  .header { padding: 20px; }
+  .hero-container { padding: 92px 20px 32px; }
+  .hero-title { font-size: 2.5rem; margin-bottom: 16px; }
+  .hero-subtitle { font-size: 1rem; margin-bottom: 8px; }
+  .hero-content { margin-bottom: 28px; }
+  .auth-card { width: 100%; max-width: 420px; margin-top: 20px; }
+  .auth-switch { margin-top: 14px; }
+
+  /* Lay the card collage out at its full design size, then shrink it as one piece from the top. */
+  .hero-gallery { width: 100%; height: 300px; max-width: none; display: block; overflow: visible; }
+  .cards-wrapper { position: absolute; left: 50%; top: 0; width: 560px; height: 500px;
+                   transform: translateX(-54%) scale(0.54); transform-origin: top center; }
+  .profile-card:hover { transform: none !important; }
+}
+
+/* Installed-app (iPhone home screen): keep the header clear of the status bar */
+.header { padding-top: calc(24px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 576px) { .header { padding-top: calc(20px + env(safe-area-inset-top, 0px)); } .hero-container { padding-top: calc(92px + env(safe-area-inset-top, 0px)); } }

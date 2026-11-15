@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>{% block title %}Music Luvers{% endblock %} - Music Luvers</title>
+  {% include "users/partials/_onboarding_head.html" %}
+  <style>
+    .account-page { width: 100%; max-width: 480px; margin: 0 auto; padding: calc(32px + env(safe-area-inset-top, 0px)) 20px calc(60px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 18px; }
+    .account-page h1 { font-size: 26px; line-height: 1.2; }
+    .account-page .sub { color: #8e8e93; font-size: 14px; line-height: 1.5; }
+    .account-page form { display: flex; flex-direction: column; gap: 12px; }
+    .account-page .profile-input { width: 100%; }
+    .account-page .brand { display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; text-decoration: none; font-size: 17px; }
+    .account-page .brand i { color: #f3582c; }
+    .account-page .big-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(243,88,44,0.15); color: #f3582c; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .account-page .danger-btn { background: #e5372b !important; }
+    .account-page .errorlist { list-style: none; color: #ff8a80; font-size: 13px; }
+    .account-page .legal h2 { font-size: 17px; margin: 18px 0 6px; }
+    .account-page .legal p, .account-page .legal li { color: #c7c7cc; font-size: 14px; line-height: 1.6; }
+    .account-page .legal ul { padding-left: 18px; }
+    .account-page .legal a, .account-page .sub a { color: #f3582c; }
+  </style>
+</head>
+<body>
+  <main class="account-page">
+    <a href="{% url 'users:home' %}" class="brand"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="28" height="28" style="width:28px;height:28px;border-radius:7px;vertical-align:middle;flex-shrink:0;"> Music Luvers</a>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

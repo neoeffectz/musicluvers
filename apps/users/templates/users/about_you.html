@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>About you - Music Luvers</title>
+  {% include "users/partials/_onboarding_head.html" %}
+</head>
+<body>
+  <main class="onboard">
+    {% include "users/partials/_onboarding_steps.html" with step_number=1 %}
+    <div>
+      <h1>Hey {{ user.first_name }}, a bit about you</h1>
+      <p class="sub">So we show you to the right people.</p>
+    </div>
+
+    <form method="post" class="profile-form" style="display:flex; flex-direction:column; gap:22px;">
+      {% csrf_token %}
+      <div>
+        <span class="field-label">I am a</span>
+        <div class="pill-group">
+          {% for value, label in user.GENDER_CHOICES %}
+            <label><input type="radio" name="gender" value="{{ value }}" required {% if form.gender.value == value %}checked{% endif %}><span class="pill">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        {% for err in form.gender.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div>
+        <span class="field-label">Show me</span>
+        <div class="pill-group">
+          {% for value, label in user.PREFERENCE_CHOICES %}
+            <label><input type="radio" name="preference" value="{{ value }}" required {% if form.preference.value == value %}checked{% endif %}><span class="pill">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        {% for err in form.preference.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div>
+        <label class="field-label" for="birthdate">Birthday</label>
+        <span class="date-wrap"><input type="date" id="birthdate" name="birthdate" class="profile-input" required value="{{ form.birthdate.value|date:'Y-m-d'|default:form.birthdate.value|default:'' }}"></span>
+        {% for err in form.birthdate.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+      </div>
+
+      <div>
+        <span class="field-label">Your location <span style="color:#8e8e93; font-weight:400;">(so we show you people nearby)</span></span>
+        {% include "users/partials/_locate_button.html" with label="Share my location" %}
+        {% if location_error %}<p class="form-error" id="location-error">{{ location_error }}</p>{% endif %}
+      </div>
+
+      <div>
+        <span class="field-label">A photo of you <span style="color:#8e8e93; font-weight:400;">(optional, you can add more later)</span></span>
+        <div class="photo-picker" id="photo-picker" data-upload-url="{% url 'users:about_you_photo' %}" data-photo-id="{{ photo.id|default:'' }}">
+          <input type="file" id="photo" aria-label="Choose a photo of you" title="Choose a photo">
+          <span class="photo-preview" id="photo-preview">
+            {% if photo %}<img src="{{ photo.image.url }}" alt="">{% else %}<i class="fa-solid fa-camera"></i>{% endif %}
+          </span>
+          <span class="photo-text">
+            <strong id="photo-title">{% if photo %}Photo saved <i class="fa-solid fa-circle-check" style="color:#f3582c;"></i>{% else %}Add a photo{% endif %}</strong>
+            <span id="photo-name">{% if photo %}Click or drag to change it{% else %}Click to choose, or drag a photo here{% endif %}</span>
+          </span>
+        </div>
+        <p class="form-error" id="photo-error" hidden></p>
+      </div>
+
+      <button type="submit" class="btn-save-profile btn-wide" id="about-continue" {% if not user.has_position %}disabled{% endif %}>Continue</button>
+      <p class="continue-hint" id="continue-hint" {% if user.has_position %}hidden{% endif %}>Share your location to continue</p>
+    </form>
+  </main>
+  <script>
+    (() => {
+      const input = document.getElementById('photo');
+      const picker = document.getElementById('photo-picker');
+      const preview = document.getElementById('photo-preview');
+      const title = document.getElementById('photo-title');
+      const note = document.getElementById('photo-name');
+      const error = document.getElementById('photo-error');
+      const submit = document.getElementById('about-continue');
+      const MAX = 10 * 1024 * 1024;
+      // Continue needs a saved location (GPS is compulsory); the photo upload must not unlock it.
+      let hasLocation = {{ user.has_position|yesno:"true,false" }};
+      document.addEventListener('location-saved', () => {
+        hasLocation = true;
+        if (submit && !busy) submit.disabled = false;
+        document.getElementById('continue-hint').hidden = true;
+        document.getElementById('location-error')?.remove();
+      });
+      let busy = false;
+
+      function fail(message) {
+        error.textContent = message;
+        error.hidden = false;
+        if (!picker.dataset.photoId) {
+          preview.innerHTML = '<i class="fa-solid fa-camera"></i>';
+          title.textContent = 'Add a photo';
+        } else {
+          title.innerHTML = 'Photo saved <i class="fa-solid fa-circle-check" style="color:#f3582c;"></i>';
+        }
+        note.textContent = 'Click to choose, or drag a photo here';
+      }
+
+      async function upload(file) {
+        if (busy) return;
+        error.hidden = true;
+        if (file.type && !file.type.startsWith('image/')) return fail("That file isn't a photo. Pick a JPG or PNG.");
+        if (file.size > MAX) return fail('That photo is over 10 MB. Pick a smaller one.');
+
+        busy = true;
+        if (submit) submit.disabled = true;
+        title.textContent = 'Uploading…';
+        note.textContent = file.name;
+        preview.innerHTML = '<i class="fa-solid fa-compact-disc fa-spin"></i>';
+
+        const body = new FormData();
+        body.append('photo', file);
+        if (picker.dataset.photoId) body.append('replace_id', picker.dataset.photoId);
+        try {
+          const resp = await fetch(picker.dataset.uploadUrl, {
+            method: 'POST', body,
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) return fail(data.error || `Upload failed (error ${resp.status}). Try again.`);
+          picker.dataset.photoId = data.id;
+          preview.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = data.url;
+          img.alt = '';
+          preview.appendChild(img);
+          title.innerHTML = 'Photo saved <i class="fa-solid fa-circle-check" style="color:#f3582c;"></i>';
+          note.textContent = 'Click or drag to change it';
+        } catch (e) {
+          console.error('Photo upload failed', e);
+          fail("Couldn't reach the server. Check your connection and try again.");
+        } finally {
+          busy = false;
+          if (submit) submit.disabled = !hasLocation;
+          input.value = '';
+        }
+      }
+
+      input.addEventListener('change', () => { if (input.files[0]) upload(input.files[0]); });
+
+      ['dragenter', 'dragover'].forEach(ev => picker.addEventListener(ev, (e) => {
+        e.preventDefault();
+        picker.classList.add('dragging');
+      }));
+      ['dragleave', 'drop'].forEach(ev => picker.addEventListener(ev, () => picker.classList.remove('dragging')));
+      picker.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (!file) return fail("Couldn't read that photo. Drag it to your Desktop first, then drag it here from there.");
+        upload(file);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<section class="user-details-section">
+  <div class="user-card-container">
+    <div class="user-card-header">
+      <div class="user-title-group">
+        <h1 class="user-display-name">
+          {{ display_name }}
+          <i class="fa-solid fa-circle-check status-badge-icon"></i>
+        </h1>
+        <p class="user-subtitle">{% if user.location %}<i class="fa-solid fa-location-dot"></i> {{ user.location }}{% else %}Share your location in Profile{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="user-media-frame">
+      <img src="{{ user.photo_url|default:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80' }}" alt="{{ display_name }}">
+    </div>
+
+    <div class="user-info-block">
+      <div>
+        <span class="content-label">Your Stats</span>
+        {% if genre_breakdown %}
+          <p class="description-text" style="margin-top: 6px;">
+            Hi {{ display_name }}! We discovered these are your top artists you vibe to:
+            {% for a in top_artists|slice:":3" %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+            You've got great taste.
+          </p>
+        {% else %}
+          <p class="description-text" style="margin-top: 6px;">
+            We couldn't find your top genres yet — we're still searching.
+          </p>
+        {% endif %}
+      </div>
+
+      <div>
+        <span class="content-label">Your music</span>
+        <div class="tags-wrapper" style="margin-top: 8px;">
+          <a href="{% url 'spotify_match:build_taste' %}" class="tag-chip">Edit your artists</a>
+          {% if user.lastfm_username %}
+          <button type="button" class="tag-chip" hx-post="{% url 'spotify_match:resync_taste' %}" hx-target="#resync-status">Refresh from Last.fm</button>
+          {% endif %}
+        </div>
+        <div id="resync-status"></div>
+      </div>
+
+      <div>
+        <span class="content-label">Discover more artists</span>
+        <div id="artist-deck" hx-get="{% url 'spotify_match:artist_deck' %}" hx-trigger="load">
+          <p class="description-text" style="color:#8e8e93; margin-top:6px;">Loading…</p>
+        </div>
+      </div>
+
+      <div id="my-songs">
+        <span class="content-label">Your songs <span class="songs-progress">{{ answered_count }} of {{ prompts|length }} answered</span></span>
+        <p class="description-text" style="color:#8e8e93; margin:4px 0 10px;">Answer as many as you like. Same song as someone = a better match.</p>
+        <div class="prompt-stack">
+          {% for p in prompts %}{% include "spotify_match/partials/_prompt_card.html" %}{% endfor %}
+        </div>
+      </div>
+      <script>
+        // Keep "X of 7 answered" right as songs/artists/albums are picked or changed.
+        (() => {
+          const box = document.getElementById('my-songs');
+          const recount = () => {
+            const cards = box.querySelectorAll('.prompt-card');
+            const done = box.querySelectorAll('.prompt-card button[title="Change"]').length;
+            box.querySelector('.songs-progress').textContent = `${done} of ${cards.length} answered`;
+          };
+          box.addEventListener('htmx:afterSettle', recount);
+        })();
+      </script>
+
+      <div>
+        <span class="content-label">Your Top Songs</span>
+        <div class="tags-wrapper" style="margin-top: 8px;">
+          {% for track in top_tracks %}
+            <span class="tag-chip">{{ track.name }}</span>
+          {% empty %}
+            <span class="tag-chip">Still syncing your tracks…</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

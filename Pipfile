@@ -1,0 +1,32 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+django-environ = "*"
+psycopg2-binary = "*"
+django-axes = "*"
+django-csp = "*"
+phonenumbers = "*"
+djangorestframework = "*"
+djangorestframework-simplejwt = "*"
+django-redis = "*"
+channels = "*"
+channels-redis = "*"
+daphne = "*"
+pip-tools = "*"
+cryptography = "*"
+requests = "*"
+django-ninja = "*"
+cloudinary = "*"
+django-cloudinary-storage = "*"
+whitenoise = "*"
+celery = "*"
+pywebpush = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"

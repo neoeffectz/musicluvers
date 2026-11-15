@@ -1,0 +1,8 @@
+Hi {{ user.first_name|default:"there" }},
+
+Confirm this is your email for {{ site_name }}:
+{{ link }}
+
+The link works for 3 days. If you didn't sign up, you can ignore this email.
+
+— {{ site_name }}

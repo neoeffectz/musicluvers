@@ -1,0 +1,95 @@
+<section class="user-details-section">
+  <div class="user-card-container">
+    <div class="user-card-header">
+      <div class="user-title-group">
+        <h1 class="user-display-name">{{ user.first_name|default:user.username }}</h1>
+        <p class="user-subtitle">{% if user.location %}<i class="fa-solid fa-location-dot"></i> {{ user.location }}{% else %}Share your location in Profile{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="user-media-frame">
+      <img src="{{ user.photo_url|default:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80' }}" alt="{{ user.first_name }}">
+    </div>
+
+    <div class="user-info-block">
+      <div>
+        <span class="content-label">Photos</span>
+        <div class="tags-wrapper photo-grid" style="margin-top: 8px;">
+          {% for photo in user.photos.all %}
+            <div class="photo-thumb">
+              <img src="{{ photo.image.url }}" alt="">
+              <button type="button" class="photo-delete-btn" hx-post="{% url 'users:profile_photo_delete' photo.id %}" hx-target="#tab-content" hx-swap="innerHTML">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          {% empty %}
+            <span class="tag-chip">No photos yet</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <form class="profile-form" hx-post="{% url 'users:profile_update' %}" hx-target="#tab-content" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+        <div>
+          <span class="content-label">Add a photo</span>
+          <input type="file" name="photo" accept="image/*" class="profile-input">
+        </div>
+
+        <div>
+          <span class="content-label">Birthdate</span>
+          <span class="date-wrap"><input type="date" name="birthdate" class="profile-input" value="{{ user.birthdate|date:'Y-m-d' }}"></span>
+        </div>
+
+        <div>
+          <span class="content-label">Location</span>
+          {% include "users/partials/_locate_button.html" with label="Share my location" %}
+        </div>
+
+        <div>
+          <span class="content-label">Show me people within</span>
+          <select name="max_distance_km" class="profile-input">
+            {% for value, label in user.DISTANCE_CHOICES %}
+              <option value="{{ value }}" {% if user.max_distance_km == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <span class="content-label">Gender</span>
+          <select name="gender" class="profile-input">
+            <option value="" {% if not user.gender %}selected{% endif %}>Select...</option>
+            {% for value, label in user.GENDER_CHOICES %}
+              <option value="{{ value }}" {% if user.gender == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <span class="content-label">Show me</span>
+          <select name="preference" class="profile-input">
+            {% for value, label in user.PREFERENCE_CHOICES %}
+              <option value="{{ value }}" {% if user.preference == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% for e in errors %}<p class="form-error">{{ e }}</p>{% endfor %}
+        {% if saved %}<p class="saved-note"><i class="fa-solid fa-check"></i> Saved</p>{% endif %}
+        <button type="submit" class="btn-save-profile">Save</button>
+      </form>
+
+      {% if push_enabled %}{% include "users/pwa/_controls.html" %}{% endif %}
+
+      <div class="account-links">
+        <span class="content-label">Account</span>
+        <p class="account-email"><i class="fa-solid fa-envelope"></i> {{ user.email }}{% if email_enabled %}{% if user.email_verified %} <span class="verified-pill">Verified</span>{% else %} <span class="unverified-pill">Not verified</span>{% endif %}{% endif %}</p>
+        <form method="post" action="{% url 'users:logout' %}" class="logout-form">
+          {% csrf_token %}
+          <button type="submit" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Log out</button>
+        </form>
+        <a href="{% url 'users:terms' %}">Terms of Use</a>
+        <a href="{% url 'users:privacy' %}">Privacy Policy</a>
+        <a href="{% url 'users:delete_account' %}" class="danger-link"><i class="fa-solid fa-trash"></i> Delete my account</a>
+      </div>
+    </div>
+  </div>
+</section>

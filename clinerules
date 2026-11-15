@@ -1,0 +1,36 @@
+# Project Rules for Cline
+
+## Scope of changes
+- Only modify the files and functions directly relevant to the request. Do not touch unrelated code.
+- Do not refactor, rename, or "clean up" code that wasn't part of the request, even if it looks improvable.
+- Prefer the smallest diff that correctly solves the problem.
+- If a change requires touching a file outside what was mentioned, stop and ask first.
+
+## Comments & documentation
+- Do not add comments unless explicitly asked, or the logic is genuinely non-obvious (complex regex, non-standard algorithm, workaround for a bug).
+- Do not add docstrings/JSDoc to every function by default — only where the project already does this consistently.
+- No "TODO" or placeholder comments unless requested.
+
+## Code style
+- Match the existing code style, naming conventions, and formatting already used in the file/project. Do not impose a different style.
+- Do not introduce new dependencies/libraries without asking first, even if they'd simplify the task.
+- Do not add error handling, logging, retries, or validation beyond what's asked, unless the file already follows that pattern elsewhere.
+- Keep functions and files consistent with the existing architecture (e.g. if the project uses a services/ layer, don't put logic in controllers).
+
+## Security & data handling
+- Never hardcode secrets, API keys, or credentials — use environment variables / existing config patterns.
+- Sanitize and validate all user input on any new endpoint or form handler.
+- Follow existing auth/permission checks already used elsewhere in the app — don't skip them for "simplicity."
+
+## Testing
+- If the project has an existing test suite, add or update tests only for the code you changed — don't write tests for unrelated code.
+- Do not remove or weaken existing tests to make something pass.
+
+## Communication
+- Before making changes across multiple files, briefly list which files you plan to touch and why, and wait for approval.
+- If a request is ambiguous, ask a clarifying question instead of guessing and implementing the wrong thing.
+- Flag (but don't silently fix) any bugs you notice outside the scope of the current task.
+
+## Git hygiene
+- Do not run git commit or git push unless explicitly asked to.
+- Do not modify .env, CI/CD configs, or deployment files unless that is the specific task.

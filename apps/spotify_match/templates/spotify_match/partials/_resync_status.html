@@ -1,0 +1,3 @@
+<p class="description-text" style="margin-top: 8px;">
+  {% if sources %}Refreshing from {{ sources|join:" and " }}… your matches will update shortly.{% else %}No music service connected. <a href="{% url 'spotify_match:build_taste' %}">Connect one</a>.{% endif %}
+</p>

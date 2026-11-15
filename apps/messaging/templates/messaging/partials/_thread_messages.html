@@ -1,0 +1,16 @@
+{% if has_more_older %}
+<div id="older-trigger" style="text-align:center; padding: 8px;">
+  <button
+    hx-get="{% url 'messaging:load_older' conversation_id=active_conversation.id %}?before={{ thread_messages.0.id }}"
+    hx-swap="outerHTML"
+    hx-target="#older-trigger"
+    class="btn-load-older">
+    Load older messages
+  </button>
+</div>
+{% endif %}
+{% for msg in thread_messages %}
+  {% include "messaging/partials/_message_bubble.html" %}
+{% empty %}
+  <p class="description-text" style="text-align:center; padding: 20px;">No messages yet — say hi!</p>
+{% endfor %}

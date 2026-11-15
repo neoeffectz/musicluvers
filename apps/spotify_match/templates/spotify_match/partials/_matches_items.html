@@ -1,0 +1,25 @@
+{% for match in matches %}
+<div class="suggested-item">
+  <div class="user-meta">
+    <a href="{% url 'spotify_match:user_detail' user_id=match.id %}" class="user-meta-link">
+      <img class="user-avatar" src="{{ match.photo_url|default:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' }}" alt="{{ match.first_name }}">
+      <div class="user-details">
+        <h5>{{ match.first_name|default:match.username }}{% if match.age %}, {{ match.age }}{% endif %}</h5>
+        <p><span class="status-dot" style="width:5px; height:5px;"></span> {{ match.location|default:"" }}</p>
+        <span class="view-profile-hint">View profile <i class="fa-solid fa-chevron-right"></i></span>
+      </div>
+    </a>
+  </div>
+  <a href="{% url 'messaging:open' other_user_id=match.id %}" class="btn-fav">
+    <i class="fa-regular fa-comment"></i>
+  </a>
+</div>
+{% empty %}
+<section class="user-details-section">
+<div class="empty-state">
+  <div class="empty-state-avatar"><i class="fa-solid fa-music"></i></div>
+  <h3>Still searching…</h3>
+  <p>No matches yet — keep swiping!</p>
+</div>
+</section>
+{% endfor %}

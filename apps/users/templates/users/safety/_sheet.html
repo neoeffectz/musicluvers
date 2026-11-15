@@ -1,0 +1,53 @@
+{% comment %}Report / block sheet for `target`. After it's done, "Done" goes to `next_url`.
+Keep this OUTSIDE transformed/animated elements (e.g. #swipe-card), or position:fixed breaks.{% endcomment %}
+{% with name=target.first_name|default:target.username %}
+<div class="safety-sheet" id="safety-{{ target.id }}" data-next="{{ next_url }}" hidden role="dialog" aria-label="Report or block {{ name }}">
+  <div class="safety-backdrop" onclick="closeSafety('{{ target.id }}')"></div>
+  <div class="safety-panel" id="safety-body-{{ target.id }}">
+    <div class="safety-step" data-step="menu">
+      <button type="button" class="safety-option danger" onclick="safetyStep('{{ target.id }}', 'report')"><i class="fa-solid fa-flag"></i> Report {{ name }}</button>
+      <button type="button" class="safety-option" onclick="safetyStep('{{ target.id }}', 'block')"><i class="fa-solid fa-ban"></i> Block {{ name }}</button>
+      <button type="button" class="safety-option muted" onclick="closeSafety('{{ target.id }}')">Cancel</button>
+    </div>
+
+    <form class="safety-step" data-step="report" hidden hx-post="{% url 'users:report' target.id %}" hx-target="#safety-body-{{ target.id }}" hx-swap="innerHTML">
+      <h3>Report {{ name }}</h3>
+      <p class="safety-note">They won't know it was you. You won't see each other again while we review it.</p>
+      <div class="safety-reasons">
+        {% for value, label in report_reasons %}
+          <label><input type="radio" name="reason" value="{{ value }}" required> <span>{{ label }}</span></label>
+        {% endfor %}
+      </div>
+      <textarea name="details" maxlength="1000" rows="3" placeholder="Anything else we should know? (optional)"></textarea>
+      <button type="submit" class="safety-submit danger">Send report</button>
+      <button type="button" class="safety-option muted" onclick="safetyStep('{{ target.id }}', 'menu')">Back</button>
+    </form>
+
+    <form class="safety-step" data-step="block" hidden hx-post="{% url 'users:block' target.id %}" hx-target="#safety-body-{{ target.id }}" hx-swap="innerHTML">
+      <h3>Block {{ name }}?</h3>
+      <p class="safety-note">You won't see each other anywhere again. If you've matched, the match and your chat are deleted. They aren't told.</p>
+      <button type="submit" class="safety-submit danger">Block</button>
+      <button type="button" class="safety-option muted" onclick="safetyStep('{{ target.id }}', 'menu')">Back</button>
+    </form>
+  </div>
+</div>
+{% endwith %}
+<script>
+window.openSafety = window.openSafety || function (id) {
+  const sheet = document.getElementById('safety-' + id);
+  // Move to <body> so no parent (scroll area, card animation) can stack it under the buttons/tab bar.
+  if (sheet.parentElement !== document.body) document.body.appendChild(sheet);
+  sheet.hidden = false;
+  safetyStep(id, 'menu');
+};
+window.closeSafety = window.closeSafety || function (id) {
+  document.getElementById('safety-' + id).hidden = true;
+};
+window.safetyStep = window.safetyStep || function (id, step) {
+  document.querySelectorAll('#safety-body-' + id + ' .safety-step').forEach(el => { el.hidden = el.dataset.step !== step; });
+};
+window.safetyDone = window.safetyDone || function (id) {
+  const sheet = document.getElementById('safety-' + id);
+  window.location.href = sheet.dataset.next || '/dashboard/';
+};
+</script>

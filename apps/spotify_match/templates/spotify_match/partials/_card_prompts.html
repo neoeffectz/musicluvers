@@ -1,0 +1,12 @@
+{% for prompt in prompts %}
+  <div>
+    <span class="content-label">{{ prompt.get_prompt_display }}</span>
+    <div class="answer-row kind-{{ prompt.kind }}">
+      {% if prompt.image_url %}<img src="{{ prompt.image_url }}" alt="">{% endif %}
+      <div>
+        <strong>{{ prompt.track_name }}</strong>
+        <span>{% if prompt.kind == "artist" %}Artist{% elif prompt.kind == "album" %}Album · {{ prompt.artist_name }}{% else %}{{ prompt.artist_name }}{% endif %}</span>
+      </div>
+    </div>
+  </div>
+{% endfor %}

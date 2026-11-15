@@ -1,0 +1,11 @@
+<div>
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; min-height:20px;">
+    {% if back_url %}
+      <a href="{{ back_url }}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    {% else %}<span></span>{% endif %}
+    <span class="step-label" style="margin:0;">Step {{ step_number }} of 3</span>
+  </div>
+  <div class="steps">
+    {% for n in "123" %}<span class="{% if forloop.counter <= step_number %}done{% endif %}"></span>{% endfor %}
+  </div>
+</div>

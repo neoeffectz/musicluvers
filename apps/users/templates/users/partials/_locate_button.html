@@ -1,0 +1,68 @@
+{% comment %}
+Location is GPS-only (no typing). Saves the phone's rough position for distance matching and shows the city.
+  label = button text ("Share my location" / "Update my location")
+Fires a "location-saved" event on document when saved, so pages can unlock their Continue button.
+{% endcomment %}
+<div class="locate-box" data-url="{% url 'users:locate' %}">
+  <p class="locate-current" {% if not user.has_position %}hidden{% endif %}>
+    <i class="fa-solid fa-location-dot"></i>
+    <span class="locate-city">{% if user.location %}{{ user.location }}{% else %}Location saved{% endif %}</span>
+  </p>
+  <button type="button" class="locate-btn" onclick="useMyLocation(this)">
+    <i class="fa-solid fa-location-crosshairs"></i>
+    <span>{% if user.has_position %}Update my location{% else %}{{ label|default:"Share my location" }}{% endif %}</span>
+  </button>
+  <p class="locate-msg" hidden></p>
+  <div class="locate-help" hidden>
+    <strong>Turn location on for this site</strong>
+    <p><b>iPhone:</b> Settings → Privacy &amp; Security → Location Services → turn it on, then Safari Websites → While Using the App. Come back and tap the button again.</p>
+    <p><b>Android (Chrome):</b> tap the icon left of the web address → Permissions → Location → Allow. Then tap the button again.</p>
+  </div>
+</div>
+<script>
+window.useMyLocation = window.useMyLocation || function (btn) {
+  const box = btn.closest('.locate-box');
+  const label = btn.querySelector('span');
+  const msg = box.querySelector('.locate-msg');
+  const help = box.querySelector('.locate-help');
+  const current = box.querySelector('.locate-current');
+  const say = (text) => { msg.textContent = text; msg.hidden = !text; };
+  const idle = (text) => { btn.disabled = false; label.textContent = text; };
+  const csrf = () => {
+    const m = document.cookie.match(/(^|;)\s*csrftoken\s*=\s*([^;]+)/);
+    return m ? m.pop() : (document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+  };
+  say(''); help.hidden = true;
+  if (!window.isSecureContext || !navigator.geolocation) {
+    say("This browser can't share location on this connection. Open the app's https link in Safari or Chrome.");
+    return;
+  }
+  btn.disabled = true;
+  label.textContent = 'Finding you…';
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const body = new URLSearchParams({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      const resp = await fetch(box.dataset.url, { method: 'POST', body, headers: { 'X-CSRFToken': csrf(), 'Accept': 'application/json' } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { say(data.error || "Couldn't save your location. Try again."); idle('Try again'); return; }
+      current.querySelector('.locate-city').textContent = data.city || 'Location saved';
+      current.hidden = false;
+      idle('Update my location');
+      try { localStorage.setItem('ml-located-at', String(Date.now())); } catch (e) {}
+      document.dispatchEvent(new CustomEvent('location-saved', { detail: data }));
+    } catch (e) {
+      console.error('Saving location failed', e);
+      say("Couldn't reach the server. Check your connection and try again.");
+      idle('Try again');
+    }
+  }, (err) => {
+    if (err.code === err.PERMISSION_DENIED) {
+      say('Location is blocked, and Music Luvers needs it to show you people nearby.');
+      help.hidden = false;
+    } else {
+      say("Couldn't get your location. Make sure location is on, then try again.");
+    }
+    idle('Try again');
+  }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+};
+</script>

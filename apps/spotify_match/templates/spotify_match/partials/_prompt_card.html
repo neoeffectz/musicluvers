@@ -1,0 +1,17 @@
+<section class="prompt-card kind-{{ p.kind }}" id="prompt-{{ p.key }}">
+  <h2>{{ p.label }}</h2>
+  {% if p.answer %}
+    <div class="song-row">
+      {% if p.answer.image_url %}<img src="{{ p.answer.image_url }}" alt="">{% else %}<div class="no-img"></div>{% endif %}
+      <div class="meta"><strong>{{ p.answer.track_name }}</strong><span>{% if p.kind == "artist" %}Artist{% elif p.kind == "album" %}Album · {{ p.answer.artist_name }}{% else %}{{ p.answer.artist_name }}{% endif %}</span></div>
+      <button type="button" class="song-pick" title="Change"
+              hx-post="{% url 'spotify_match:song_clear' p.key %}" hx-target="#prompt-{{ p.key }}" hx-swap="outerHTML">Change</button>
+    </div>
+  {% else %}
+    <input type="search" name="q" class="profile-input" placeholder="{% if p.kind == 'artist' %}Search an artist…{% elif p.kind == 'album' %}Search an album…{% else %}Search a song…{% endif %}" autocomplete="off" style="margin-top:0;"
+           hx-get="{% url 'spotify_match:song_search' %}" hx-vals='{"prompt": "{{ p.key }}"}'
+           hx-trigger="input changed delay:350ms, search" hx-target="#song-results-{{ p.key }}">
+    <div class="song-results" id="song-results-{{ p.key }}"></div>
+  {% endif %}
+  {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+</section>

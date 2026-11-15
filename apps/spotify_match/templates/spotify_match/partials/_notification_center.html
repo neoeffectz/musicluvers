@@ -1,0 +1,71 @@
+{# Bell panel + the live /ws/events/ connection. Pages can set window.onUserEvent(event) for their own extras. #}
+<div id="notif-panel" class="glass-card" hidden role="dialog" aria-label="Notifications"></div>
+<script>
+function loadNotifications() {
+  htmx.ajax("GET", "{% url 'spotify_match:notifications' %}", "#notif-panel");
+}
+function toggleNotifications() {
+  const panel = document.getElementById("notif-panel");
+  if (panel.hidden) {
+    panel.innerHTML = '<p class="notif-empty"><i class="fa-solid fa-compact-disc fa-spin"></i> Loading…</p>';
+    panel.hidden = false;
+    loadNotifications();
+  } else {
+    closeNotifications();
+  }
+}
+function closeNotifications() {
+  document.getElementById("notif-panel").hidden = true;
+}
+function refreshNotificationBadge() {
+  htmx.trigger(document.body, "refreshNotifs");
+}
+document.addEventListener("click", (e) => {
+  const panel = document.getElementById("notif-panel");
+  if (!panel.hidden && !panel.contains(e.target) && !e.target.closest(".notif-bell")) closeNotifications();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNotifications(); });
+
+// Keep the rough position fresh, like dating apps do when opened. Only if location was already allowed
+// (never pops a permission prompt here), and at most every 6 hours.
+(async () => {
+  try {
+    if (!window.isSecureContext || !navigator.geolocation || !navigator.permissions) return;
+    const last = Number(localStorage.getItem('ml-located-at')) || 0;
+    if (Date.now() - last < 6 * 3600 * 1000) return;
+    const status = await navigator.permissions.query({ name: 'geolocation' });
+    if (status.state !== 'granted') return;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const m = document.cookie.match(/(^|;)\s*csrftoken\s*=\s*([^;]+)/);
+      const body = new URLSearchParams({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      const resp = await fetch("{% url 'users:locate' %}", { method: 'POST', body, headers: { 'X-CSRFToken': m ? m.pop() : '' } });
+      if (resp.ok) {
+        localStorage.setItem('ml-located-at', String(Date.now()));
+        if (document.getElementById('discover-empty')) htmx.ajax('GET', "{% url 'spotify_match:tab_discover' %}", '#tab-content');
+      }
+    }, () => {}, { enableHighAccuracy: false, timeout: 15000, maximumAge: 1800000 });
+  } catch (e) { /* location refresh is best-effort */ }
+})();
+
+(() => {
+  let delay = 1000;
+  function connect() {
+    const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${scheme}://${window.location.host}/ws/events/`);
+    socket.onopen = () => { delay = 1000; };
+    socket.onmessage = (e) => {
+      const event = JSON.parse(e.data);
+      if (event.kind === "match_created" || event.kind === "notification") {
+        refreshNotificationBadge();
+        if (!document.getElementById("notif-panel").hidden) loadNotifications();
+      }
+      if (typeof window.onUserEvent === "function") window.onUserEvent(event);
+    };
+    socket.onclose = () => {
+      setTimeout(connect, delay);
+      delay = Math.min(delay * 2, 15000);
+    };
+  }
+  connect();
+})();
+</script>

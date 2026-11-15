@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Your sound - Music Luvers</title>
+  {% include "users/partials/_onboarding_head.html" %}
+  <style>
+    .artist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px 10px; }
+    .artist-tile { background: none; border: none; color: #e5e5ea; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: inherit; font-size: 12px; text-align: center; padding: 0; }
+    .artist-tile .avatar { position: relative; width: 84px; height: 84px; border-radius: 50%; overflow: hidden; border: 3px solid transparent; transition: border-color .15s, transform .15s; background: rgba(255,255,255,0.08); }
+    .artist-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .artist-tile .tick { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(243,88,44,0.55); font-size: 26px; color: #fff; }
+    .artist-tile.picked .avatar { border-color: #f3582c; transform: scale(0.96); }
+    .artist-tile.picked .tick { display: flex; }
+    .artist-tile:focus-visible .avatar { outline: 2px solid #f3582c; outline-offset: 2px; }
+    .grid-genre { font-size: 13px; font-weight: 600; color: #8e8e93; margin: 18px 0 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .taste-result { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+    .taste-result img, .taste-result .no-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.08); }
+    .taste-result span { flex: 1; }
+    .taste-add-btn { border: none; border-radius: 10px; padding: 6px 12px; cursor: pointer; font-family: inherit; }
+    .taste-error { color: #ff8a80; font-size: 13px; margin-top: 8px; }
+    details.lastfm summary { cursor: pointer; color: #8e8e93; font-size: 13px; }
+    .loading { color: #8e8e93; font-size: 13px; padding: 20px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="onboard">
+    {% if step == "genres" %}
+      {% url 'users:about_you' as back_url %}
+      {% include "users/partials/_onboarding_steps.html" with step_number=2 back_url=back_url %}
+      <div>
+        <h1>What do you listen to?</h1>
+        <p class="sub">Pick up to {{ max_genres }}.</p>
+      </div>
+      <form method="post" action="{% url 'spotify_match:taste_genres' %}" id="genre-form">
+        {% csrf_token %}
+        <div class="chip-grid">
+          {% for key, label, _ in genres %}
+            <label><input type="checkbox" name="genres" value="{{ key }}" {% if key in request.user.favorite_genres %}checked{% endif %}><span class="genre-chip">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+        <div class="bottom-bar">
+          <div class="bottom-bar-inner">
+            <span class="count" id="genre-count"></span>
+            <button type="submit" class="btn-save-profile" id="genre-submit">Continue</button>
+          </div>
+        </div>
+      </form>
+      <script>
+        (() => {
+          const max = {{ max_genres }};
+          const boxes = [...document.querySelectorAll('#genre-form input[name="genres"]')];
+          const count = document.getElementById('genre-count');
+          const submit = document.getElementById('genre-submit');
+          function sync() {
+            const n = boxes.filter(b => b.checked).length;
+            boxes.forEach(b => { b.disabled = !b.checked && n >= max; });
+            count.textContent = n ? `${n} picked` : 'Pick at least 1';
+            submit.disabled = n === 0;
+          }
+          boxes.forEach(b => b.addEventListener('change', sync));
+          sync();
+        })();
+      </script>
+    {% else %}
+      {% include "users/partials/_onboarding_steps.html" with step_number=2 back_url="?step=genres" %}
+      <div>
+        <h1>Tap the artists you love</h1>
+        <p class="sub">Pick at least {{ min_picks }}. <a href="?step=genres" style="color:#f3582c;">Change genres</a></p>
+        {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+      </div>
+
+      <div id="artist-grid" hx-get="{% url 'spotify_match:taste_suggestions' %}" hx-trigger="load" hx-swap="innerHTML">
+        <p class="loading"><i class="fa-solid fa-compact-disc fa-spin"></i> Finding artists…</p>
+      </div>
+
+      <section class="user-card-container" style="max-width:none;">
+        <span class="field-label">Someone missing?</span>
+        <input type="search" name="q" class="profile-input" placeholder="Search for an artist…" autocomplete="off"
+               hx-get="{% url 'spotify_match:taste_search' %}" hx-trigger="input changed delay:350ms, search"
+               hx-target="#taste-results">
+        <div id="taste-results"></div>
+      </section>
+
+      {% if lastfm_enabled %}
+      <details class="lastfm" {% if lastfm_error %}open{% endif %}>
+        <summary><i class="fa-brands fa-lastfm"></i> Use Last.fm? Import what you actually play</summary>
+        <form method="post" action="{% url 'spotify_match:connect_lastfm' %}" class="profile-form" style="margin-top:10px;">
+          {% csrf_token %}
+          <input type="text" name="lastfm_username" class="profile-input" value="{{ lastfm_username|default:request.user.lastfm_username }}" placeholder="Last.fm username" required maxlength="15">
+          {% if lastfm_error %}<p class="taste-error">{{ lastfm_error }}</p>{% endif %}
+          <button type="submit" class="btn-save-profile btn-wide" style="margin-top:10px;">Connect Last.fm</button>
+        </form>
+      </details>
+      {% endif %}
+
+      <div id="taste-picks">
+        {% include "spotify_match/partials/_taste_picks.html" %}
+      </div>
+
+      <script>
+        function syncPickedTiles() {
+          const holder = document.getElementById('picked-ids');
+          if (!holder) return;
+          const picked = new Set(JSON.parse(holder.textContent));
+          document.querySelectorAll('.artist-tile').forEach(t => t.classList.toggle('picked', picked.has(t.dataset.id)));
+          document.querySelectorAll('.taste-add-btn[data-id]').forEach(b => {
+            const isPicked = picked.has(b.dataset.id);
+            b.disabled = isPicked;
+            b.textContent = isPicked ? 'Added' : 'Add';
+          });
+        }
+        document.body.addEventListener('htmx:afterSettle', syncPickedTiles);
+      </script>
+    {% endif %}
+  </main>
+</body>
+</html>

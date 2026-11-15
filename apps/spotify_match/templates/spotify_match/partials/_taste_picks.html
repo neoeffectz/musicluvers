@@ -1,0 +1,24 @@
+{{ picked_ids|json_script:"picked-ids" }}
+{% if picks %}
+<div class="tags-wrapper" style="margin-top: 4px;">
+  {% for artist in picks %}
+    <span class="tag-chip">
+      {{ artist.name }}
+      <button type="button" class="photo-delete-btn" style="position:static;" title="Remove {{ artist.name }}"
+              hx-post="{% url 'spotify_match:taste_remove' artist.id %}" hx-target="#taste-picks">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </span>
+  {% endfor %}
+</div>
+{% endif %}
+{% if error %}<p class="taste-error">{{ error }}</p>{% endif %}
+<form method="post" action="{% url 'spotify_match:taste_finish' %}" class="bottom-bar">
+  {% csrf_token %}
+  <div class="bottom-bar-inner">
+    <span class="count">
+      {% if picks|length < min_picks %}{{ picks|length }} of {{ min_picks }} picked{% else %}{{ picks|length }} picked, nice{% endif %}
+    </span>
+    <button type="submit" class="btn-save-profile" {% if picks|length < min_picks %}disabled{% endif %}>Continue</button>
+  </div>
+</form>

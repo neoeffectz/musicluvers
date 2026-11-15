@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Your Matches - Music Luvers</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  {% include "users/pwa/_head.html" %}
+  <link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20261114g">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261114g">
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <script>
+    document.addEventListener('htmx:configRequest', (event) => {
+      const m = document.cookie.match(/(^|;)\s*csrftoken\s*=\s*([^;]+)/);
+      event.detail.headers['X-CSRFToken'] = m ? m.pop() : '';
+    });
+  </script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="30" height="30" style="width:30px;height:30px;border-radius:7px;vertical-align:middle;flex-shrink:0;"><span>Music Luvers</span></div>
+    <nav class="nav-menu">
+      <a href="{% url 'spotify_match:dashboard' %}" class="nav-item" data-tab="discover">
+        <div><i class="fa-solid fa-fire"></i> Discover</div>
+      </a>
+      <a href="{% url 'messaging:messages' %}" class="nav-item" data-tab="messages">
+        <div><i class="fa-regular fa-comment"></i> Messages</div>
+      </a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="nav-item" data-tab="sound">
+        <div><i class="fa-solid fa-music"></i> My Sound</div>
+      </a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="nav-item">
+        <div><i class="fa-solid fa-user"></i> Profile</div>
+      </a>
+      <a href="#" class="nav-item" id="logout-btn">
+        <div><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-wrapper">
+    <header class="top-header">
+      <nav class="top-nav">
+        <a href="{% url 'spotify_match:dashboard' %}" data-tab="discover">Discover</a>
+        <a href="{% url 'messaging:messages' %}" data-tab="messages">Messages</a>
+        <a href="{% url 'spotify_match:dashboard' %}?tab=sound" data-tab="sound">My Sound</a>
+        <a href="{% url 'spotify_match:dashboard' %}?tab=profile">Profile</a>
+      </nav>
+      <div class="header-user">
+        {% include "spotify_match/partials/_notification_bell.html" %}
+        <div class="user-profile">
+          <img src="{{ user.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }}" alt="{{ user.first_name }}">
+          <span>{{ user.first_name|default:user.username }}</span>
+        </div>
+        <a href="#" class="btn-logout-top" id="logout-btn-top" title="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </a>
+      </div>
+    </header>
+
+    <div class="content-container">
+      <div class="messages-column">
+        <div class="center-section messages-main">
+          <div class="messages-shell">
+            <div class="conversations-panel-full">
+              <h4 class="conversations-title">Your Matches</h4>
+              <div class="suggested-list" style="overflow-y:auto; gap:14px;">
+                {% include "spotify_match/partials/_matches_items.html" %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="right-sidebar">
+        <div class="glass-card">
+          <div class="score-top">
+            <div class="donut-chart"><span class="donut-text">{{ top_genre_pct }}%</span></div>
+            <div class="score-info">
+              <h3>{{ greeting }}, {{ user.first_name|default:user.username }}!</h3>
+              <p>These are your top artists we discovered</p>
+            </div>
+          </div>
+          <div class="shared-interests">
+            <div class="tags-grid">
+              {% for artist in top_artists %}<span class="tag">{{ artist.name }}</span>{% empty %}<span class="tag">Syncing your artists…</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  {% include "spotify_match/partials/_mobile_shell.html" with active="matches" %}
+  {% include "spotify_match/partials/_notification_center.html" %}
+  <script>
+    function getCookie(name) {
+      const match = document.cookie.match(`(^|;)\\s*${name}\\s*=\\s*([^;]+)`);
+      return match ? match.pop() : "";
+    }
+    async function doLogout(e) {
+      e.preventDefault();
+      const f = document.createElement("form"); f.method = "post"; f.action = "/logout/";
+  f.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCookie("csrftoken") + '">';
+  document.body.appendChild(f); f.submit();
+    }
+    document.getElementById("logout-btn")?.addEventListener("click", doLogout);
+    document.getElementById("logout-btn-top")?.addEventListener("click", doLogout);
+  </script>
+</body>
+</html>

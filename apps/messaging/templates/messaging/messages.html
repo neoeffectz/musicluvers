@@ -1,0 +1,265 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Messages - Music Luvers</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  {% include "users/pwa/_head.html" %}
+  <link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20261114g">
+  <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261114g">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+
+  <script>
+    function getCookie(name) {
+      const match = document.cookie.match(`(^|;)\\s*${name}\\s*=\\s*([^;]+)`);
+      return match ? match.pop() : "";
+    }
+    document.addEventListener('htmx:configRequest', (event) => {
+      event.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
+    });
+    document.addEventListener('htmx:afterSwap', (event) => {
+      if (event.detail.target.id === 'thread-messages') {
+        event.detail.target.scrollTop = event.detail.target.scrollHeight;
+      }
+    });
+  </script>
+</head>
+<body >
+
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="30" height="30" style="width:30px;height:30px;border-radius:7px;vertical-align:middle;flex-shrink:0;">
+      <span>Music Luvers</span>
+    </div>
+    <nav class="nav-menu">
+      <a href="/dashboard/" class="nav-item">
+        <div><i class="fa-solid fa-fire"></i> Discover</div>
+      </a>
+      <a href="{% url 'messaging:messages' %}" class="nav-item active">
+        <div><i class="fa-regular fa-comment"></i> Messages</div>
+      </a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="nav-item">
+        <div><i class="fa-solid fa-music"></i> My Sound</div>
+      </a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="nav-item">
+        <div><i class="fa-solid fa-user"></i> Profile</div>
+      </a>
+      <a href="#" class="nav-item" id="logout-btn">
+        <div><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-wrapper">
+  <header class="top-header">
+    <nav class="top-nav">
+      <a href="/dashboard/">Discover</a>
+      <a href="{% url 'messaging:messages' %}" class="active">Messages</a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=sound">My Sound</a>
+        <a href="{% url 'spotify_match:dashboard' %}?tab=profile">Profile</a>
+    </nav>
+    <div class="header-user">
+      {% include "spotify_match/partials/_notification_bell.html" %}
+      <div class="user-profile">
+        <img src="{{ user.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }}" alt="{{ user.first_name }}">
+        <span>{{ user.first_name|default:user.username }}</span>
+      </div>
+      <a href="#" class="btn-logout-top" id="logout-btn-top" title="Logout">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </a>
+    </div>
+  </header>
+
+  {% include "users/partials/_verify_banner.html" %}
+    <div class="content-container">
+    <div class="messages-column">
+
+      <div class="center-section messages-main">
+      <div class="messages-shell" id="messages-content">
+        {% if active_conversation %}
+          {% include "messaging/partials/_thread_panel.html" %}
+        {% else %}
+          {% include "messaging/partials/_conversations_list.html" %}
+        {% endif %}
+      </div>
+    </div>
+
+
+    </div>
+    
+
+    <!-- RIGHT SIDEBAR -->
+    <aside class="right-sidebar">
+      <div class="glass-card">
+        <div class="score-top">
+          <div class="donut-chart">
+            <span class="donut-text">{{ top_genre_pct }}%</span>
+          </div>
+          <div class="score-info">
+            <h3>{{ greeting }}, {{ user.first_name|default:user.username }}!</h3>
+            <p>These are your top artists we discovered</p>
+          </div>
+        </div>
+
+        <div class="shared-interests">
+          <div class="tags-grid">
+            {% for artist in top_artists %}
+              <span class="tag">{{ artist.name }}</span>
+            {% empty %}
+              <span class="tag">Syncing your artists…</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card suggested-card">
+        <div class="suggested-header">
+          <h4>Your matches</h4>
+          <a href="{% url 'spotify_match:all_matches' %}">View all</a>
+        </div>
+        <div class="suggested-list" id="matches-list">
+          {% include "spotify_match/partials/_matches_items.html" %}
+        </div>
+        <button class="btn-see-more" disabled>Go to messages</button>
+      </div>
+    </aside>
+  </div>
+
+  {% include "spotify_match/partials/_mobile_shell.html" with active="messages" %}
+</main>
+{% include "spotify_match/partials/_notification_center.html" %}
+</body>
+</html>
+
+
+<script>
+function getCookie(name) {
+  const match = document.cookie.match(`(^|;)\\s*${name}\\s*=\\s*([^;]+)`);
+  return match ? match.pop() : "";
+}
+document.addEventListener('htmx:configRequest', (event) => {
+  event.detail.headers['X-CSRFToken'] = getCookie('csrftoken');
+});
+
+const currentUserId = "{{ request.user.id }}";
+let chatSocket = null;
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function appendMessage(msg) {
+  if (document.getElementById(`msg-${msg.id}`)) return; 
+  const container = document.getElementById("thread-messages");
+  if (!container) return;
+  const isSent = String(msg.sender_id) === String(currentUserId);
+  const row = document.createElement("div");
+  row.id = `msg-${msg.id}`;
+  row.className = `message-row ${isSent ? "sent" : "received"}`;
+  row.innerHTML = `
+    <div class="message-bubble">
+      ${escapeHtml(msg.body)}
+      <span class="message-time">${msg.created_at}</span>
+    </div>`;
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+let scrollHeightBeforeLoad = null;
+
+document.addEventListener('htmx:beforeSwap', (event) => {
+  if (event.detail.target.id === 'older-trigger') {
+    const container = document.getElementById('thread-messages');
+    scrollHeightBeforeLoad = container ? container.scrollHeight : null;
+  }
+});
+
+document.addEventListener('htmx:afterSwap', (event) => {
+  if (event.detail.target.id === 'thread-messages') {
+    event.detail.target.scrollTop = event.detail.target.scrollHeight; // existing: scroll to bottom on send/init
+  } else if (event.detail.target.id === 'older-trigger') {
+    const container = document.getElementById('thread-messages');
+    if (container && scrollHeightBeforeLoad !== null) {
+      container.scrollTop += container.scrollHeight - scrollHeightBeforeLoad;
+      scrollHeightBeforeLoad = null;
+    }
+  }
+});
+
+
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let currentConversationId = null;
+
+function connectToConversation(conversationId) {
+  currentConversationId = conversationId;
+  clearTimeout(reconnectTimer);
+  if (chatSocket) {
+    chatSocket.onclose = null; 
+    chatSocket.close();
+  }
+  if (!conversationId) return;
+
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  chatSocket = new WebSocket(`${scheme}://${window.location.host}/ws/messaging/${conversationId}/`);
+
+  chatSocket.onopen = () => {
+    reconnectAttempts = 0; 
+  };
+
+  chatSocket.onmessage = (e) => appendMessage(JSON.parse(e.data));
+
+  chatSocket.onerror = (e) => console.error("WS error:", e);
+
+  chatSocket.onclose = (e) => {
+    console.warn("WS closed:", e.code, e.reason, "— reconnecting…");
+    if (conversationId !== currentConversationId) return; // user switched conversations, don't reconnect stale socket
+    const delay = Math.min(1000 * 2 ** reconnectAttempts, 15000); // exponential backoff, capped at 15s
+    reconnectAttempts++;
+    reconnectTimer = setTimeout(() => connectToConversation(conversationId), delay);
+  };
+}
+
+{% if active_conversation %}
+connectToConversation("{{ active_conversation.id }}");
+{% endif %}
+
+// A new message for the chat you're looking at is already read; anything else refreshes the inbox.
+window.onUserEvent = async (event) => {
+  if (event.kind !== "notification") return;
+  if (event.conversation_id && event.conversation_id === currentConversationId) {
+    await fetch(`/messages/read/${event.conversation_id}/`, { method: "POST", headers: { "X-CSRFToken": getCookie("csrftoken") } });
+    refreshNotificationBadge();
+  } else if (!document.querySelector('#messages-content .thread-meta')) {
+    htmx.ajax('GET', "{% url 'messaging:list' %}", '#messages-content');
+  }
+};
+
+document.addEventListener('htmx:afterSwap', (event) => {
+  if (event.detail.target.id !== 'messages-content') return;
+  const meta = event.detail.target.querySelector('.thread-meta');
+  connectToConversation(meta ? meta.dataset.conversationId : null);
+});
+async function doLogout(e) {
+  e.preventDefault();
+  const f = document.createElement("form"); f.method = "post"; f.action = "/logout/";
+  f.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCookie("csrftoken") + '">';
+  document.body.appendChild(f); f.submit();
+}
+document.getElementById("logout-btn")?.addEventListener("click", doLogout);
+document.getElementById("logout-btn-top")?.addEventListener("click", doLogout);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('.thread-input-bar input[name="body"]')) {
+    e.preventDefault();
+    e.target.closest('form').requestSubmit();
+  }
+});
+</script>

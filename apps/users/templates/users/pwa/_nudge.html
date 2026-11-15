@@ -1,0 +1,35 @@
+{# One-time card on Discover: "Get a buzz when you match". Hidden once dismissed or notifications are on. #}
+<div class="pwa-nudge" id="pwa-nudge" hidden>
+  <i class="fa-solid fa-bell"></i>
+  <div class="pwa-nudge-text">
+    <strong>Get a buzz when you match</strong>
+    <span id="pwa-nudge-sub">Turn on notifications so you never miss a match or a message.</span>
+  </div>
+  <button type="button" class="pwa-btn primary" id="pwa-nudge-go">Turn on</button>
+  <button type="button" class="pwa-nudge-x" id="pwa-nudge-x" aria-label="Not now"><i class="fa-solid fa-xmark"></i></button>
+</div>
+<script>
+(() => {
+  const box = document.getElementById('pwa-nudge');
+  const KEY = 'ml-push-nudge-dismissed';
+  const dismissed = () => { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } };
+  function show() {
+    if (typeof window.mlPushState !== 'function') { setTimeout(show, 200); return; }
+    const state = window.mlPushState();
+    if (dismissed() || !['off', 'ios-install-first'].includes(state)) return;
+    if (state === 'ios-install-first') {
+      document.getElementById('pwa-nudge-sub').innerHTML = 'On iPhone: tap <b>Share</b> → <b>Add to Home Screen</b>, then open Music Luvers from there.';
+      document.getElementById('pwa-nudge-go').hidden = true;
+    }
+    box.hidden = false;
+  }
+  document.getElementById('pwa-nudge-x').onclick = () => { box.hidden = true; try { localStorage.setItem(KEY, '1'); } catch (e) {} };
+  document.getElementById('pwa-nudge-go').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Asking…';
+    try { await window.mlEnablePush(); } catch (err) { console.error(err); }
+    box.hidden = true;
+  };
+  document.addEventListener('ml-push-on', () => { box.hidden = true; });
+  setTimeout(show, 1500);
+})();
+</script>

@@ -1,0 +1,35 @@
+{% load static %}
+{% comment %}
+Phone-only top bar (logo + bell) and bottom tab bar, shared by every signed-in page.
+  active      = discover | matches | messages | sound | profile
+  on_dashboard = True on the dashboard, where Discover / My Sound / Profile swap the tab in place.
+{% endcomment %}
+<header class="m-topbar">
+  <a href="{% url 'spotify_match:dashboard' %}" class="m-brand"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="26" height="26" style="width:26px;height:26px;border-radius:6px;vertical-align:middle;flex-shrink:0;"> Music Luvers</a>
+  {% include "spotify_match/partials/_notification_bell_mobile.html" %}
+</header>
+
+<nav class="m-tabbar" aria-label="Main">
+  {% if on_dashboard %}
+    <a href="{% url 'spotify_match:dashboard' %}" class="m-tab{% if active == 'discover' %} active{% endif %}" data-tab="discover"
+       hx-get="{% url 'spotify_match:tab_discover' %}" hx-target="#tab-content" hx-swap="innerHTML" hx-push-url="{% url 'spotify_match:dashboard' %}">
+      <i class="fa-solid fa-fire"></i><span>Discover</span></a>
+  {% else %}
+    <a href="{% url 'spotify_match:dashboard' %}" class="m-tab{% if active == 'discover' %} active{% endif %}"><i class="fa-solid fa-fire"></i><span>Discover</span></a>
+  {% endif %}
+
+  <a href="{% url 'spotify_match:all_matches' %}" class="m-tab{% if active == 'matches' %} active{% endif %}"><i class="fa-solid fa-heart"></i><span>Matches</span></a>
+  <a href="{% url 'messaging:messages' %}" class="m-tab{% if active == 'messages' %} active{% endif %}"><i class="fa-solid fa-comment"></i><span>Messages</span></a>
+
+  {% if on_dashboard %}
+    <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="m-tab{% if active == 'sound' %} active{% endif %}" data-tab="sound"
+       hx-get="{% url 'spotify_match:tab_sound' %}" hx-target="#tab-content" hx-swap="innerHTML" hx-push-url="{% url 'spotify_match:dashboard' %}?tab=sound">
+      <i class="fa-solid fa-music"></i><span>My Sound</span></a>
+    <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="m-tab{% if active == 'profile' %} active{% endif %}" data-tab="profile"
+       hx-get="{% url 'users:profile_tab' %}" hx-target="#tab-content" hx-swap="innerHTML" hx-push-url="{% url 'spotify_match:dashboard' %}?tab=profile">
+      <i class="fa-solid fa-user"></i><span>Profile</span></a>
+  {% else %}
+    <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="m-tab{% if active == 'sound' %} active{% endif %}"><i class="fa-solid fa-music"></i><span>My Sound</span></a>
+    <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="m-tab{% if active == 'profile' %} active{% endif %}"><i class="fa-solid fa-user"></i><span>Profile</span></a>
+  {% endif %}
+</nav>

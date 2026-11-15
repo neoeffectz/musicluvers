@@ -1,0 +1,15 @@
+<div class="safety-step">
+  {% if error %}
+    <h3>Couldn't do that</h3>
+    <p class="safety-note">{{ error }}</p>
+  {% elif reported %}
+    <div class="safety-icon"><i class="fa-solid fa-shield-heart"></i></div>
+    <h3>Thanks for telling us</h3>
+    <p class="safety-note">We'll review your report. You won't see {{ name }} again.</p>
+  {% else %}
+    <div class="safety-icon"><i class="fa-solid fa-ban"></i></div>
+    <h3>{{ name }} is blocked</h3>
+    <p class="safety-note">You won't see each other again.</p>
+  {% endif %}
+  <button type="button" class="safety-submit" onclick="safetyDone('{{ target_id }}')">Done</button>
+</div>

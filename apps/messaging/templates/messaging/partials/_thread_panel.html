@@ -1,0 +1,41 @@
+{% if active_conversation %}
+<div class="thread-meta" data-conversation-id="{{ active_conversation.id }}" style="display:none;"></div>
+  <div class="thread-header">
+    <a class="btn-back"
+       hx-get="{% url 'messaging:list' %}"
+       hx-target="#messages-content"
+       hx-swap="innerHTML"
+       hx-push-url="{% url 'messaging:messages' %}">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <a href="{% url 'spotify_match:user_detail' user_id=other_user.id %}" class="thread-profile-link" title="View {{ other_user.first_name|default:other_user.username }}'s profile">
+      <img src="{{ other_user.photo_url|default:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' }}"
+           alt="" class="conversation-avatar">
+      <div>
+        <h5>{{ other_user.first_name|default:other_user.username }}</h5>
+        <p class="thread-subtitle"><span class="status-dot"></span> View profile</p>
+      </div>
+    </a>
+    <span style="margin-left:auto;">{% include "users/safety/_trigger.html" with target=other_user %}</span>
+  </div>
+  {% include "users/safety/_sheet.html" with target=other_user next_url="/messages/" %}
+
+  <div class="thread-messages" id="thread-messages">
+    {% include "messaging/partials/_thread_messages.html" %}
+  </div>
+
+  <form class="thread-input-bar"
+        hx-post="{% url 'messaging:send' conversation_id=active_conversation.id %}"
+        hx-target="#thread-messages"
+        hx-swap="innerHTML"
+        hx-on::after-request="this.reset()">
+    <input type="text" name="body" placeholder="Type a message…" autocomplete="off" required maxlength="2000">
+    <button type="submit" class="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
+  </form>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-avatar"><i class="fa-regular fa-comment"></i></div>
+    <h3>Pick a conversation</h3>
+    <p>Select a match to start chatting.</p>
+  </div>
+{% endif %}

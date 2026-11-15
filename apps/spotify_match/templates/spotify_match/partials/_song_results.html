@@ -1,0 +1,10 @@
+{% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+{% for song in results %}
+  <div class="song-row kind-{{ kind }}">
+    {% if song.image_url %}<img src="{{ song.image_url }}" alt="">{% else %}<div class="no-img"></div>{% endif %}
+    <div class="meta"><strong>{{ song.track_name }}</strong><span>{% if kind == "artist" %}Artist{% elif kind == "album" %}Album · {{ song.artist_name }}{% else %}{{ song.artist_name }}{% endif %}</span></div>
+    <button type="button" class="song-pick"
+            hx-post="{% url 'spotify_match:song_set' %}" hx-vals='{"prompt": "{{ key }}", "track_id": "{{ song.track_id|escapejs }}"}'
+            hx-target="#prompt-{{ key }}" hx-swap="outerHTML">Pick</button>
+  </div>
+{% endfor %}

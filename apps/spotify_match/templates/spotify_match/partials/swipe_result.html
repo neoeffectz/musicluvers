@@ -1,0 +1,20 @@
+{% include "spotify_match/partials/_card_body.html" %}
+
+{% if matched_user %}
+<div class="match-overlay" id="match-overlay" role="dialog" aria-label="It's a match">
+  <script>window.__shownMatch = "{{ matched_user.id }}";</script>
+  <div class="match-overlay-box">
+    <div class="match-avatars">
+      <img src="{{ request.user.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80' }}" alt="You">
+      <img src="{{ matched_user.photo_url|default:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80' }}" alt="{{ matched_user.first_name }}">
+    </div>
+    <h2>It's a match!</h2>
+    <p>You and {{ matched_user.first_name|default:matched_user.username }} like each other's sound.</p>
+    <a class="btn-primary" href="{% url 'messaging:open' matched_user.id %}"><i class="fa-solid fa-comment"></i> Say hi</a>
+    <button type="button" class="btn-ghost" onclick="document.getElementById('match-overlay').remove()">Keep discovering</button>
+  </div>
+</div>
+<div id="matches-list" hx-swap-oob="innerHTML">
+  {% include "spotify_match/partials/_matches_items.html" %}
+</div>
+{% endif %}

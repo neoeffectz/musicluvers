@@ -1,0 +1,12 @@
+<div class="message-row {% if msg.sender_id == request.user.id %}sent{% else %}received{% endif %}" id="msg-{{ msg.id }}">
+  <div class="message-bubble">
+    {{ msg.body }}
+    <span class="message-time">{{ msg.created_at|time:"g:i A" }}</span>
+    <button class="btn-like-msg {% if request.user in msg.liked_by.all %}liked{% endif %}"
+            hx-post="{% url 'messaging:toggle_like' message_id=msg.id %}"
+            hx-target="#msg-{{ msg.id }}"
+            hx-swap="outerHTML">
+      <i class="fa-solid fa-heart"></i>
+    </button>
+  </div>
+</div>

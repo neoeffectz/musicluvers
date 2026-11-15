@@ -1,0 +1,8 @@
+{% if email_enabled and user.is_authenticated and not user.email_verified %}
+<div class="verify-banner" id="verify-banner">
+  <i class="fa-solid fa-envelope-circle-check"></i>
+  <span>Confirm your email ({{ user.email }}) so you can always get back into your account.</span>
+  <button type="button" hx-post="{% url 'users:resend_verification' %}" hx-target="#verify-banner-msg" hx-swap="innerHTML">Resend</button>
+  <span id="verify-banner-msg" class="verify-banner-msg"></span>
+</div>
+{% endif %}

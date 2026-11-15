@@ -1,0 +1,95 @@
+{% if card %}
+<section class="user-details-section">
+  <div id="swipe-card">
+    <div class="user-card-container">
+      <div class="user-card-header">
+        <div class="user-title-group">
+          <h1 class="user-display-name">
+            {{ card.user.first_name|default:card.user.username }}{% if card.user.age %}, {{ card.user.age }}{% endif %}
+            <i class="fa-solid fa-circle-check status-badge-icon"></i>
+          </h1>
+          {% if card.user.location or card.distance %}<p class="user-subtitle"><i class="fa-solid fa-location-dot"></i> {{ card.user.location }}{% if card.user.location and card.distance %} · {% endif %}{{ card.distance }}</p>{% endif %}
+        </div>
+        <div class="card-header-actions">
+          <span class="match-pill">{{ card.score }}% Match</span>
+          {% include "users/safety/_trigger.html" with target=card.user %}
+        </div>
+      </div>
+
+      <div class="user-media-frame">
+        <img src="{{ card.user.photo_url|default:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80' }}" alt="{{ card.user.first_name }}">
+      </div>
+
+      <div class="user-info-block">
+        {% if card.shared_answers %}
+          <div class="in-common">
+            <span class="content-label">You two have in common</span>
+            <ul>{% for reason in card.shared_answers %}<li><i class="fa-solid fa-music"></i> {{ reason }}</li>{% endfor %}</ul>
+          </div>
+        {% endif %}
+        {% include "spotify_match/partials/_card_prompts.html" with prompts=card.prompts %}
+        <div>
+          <span class="content-label">Shared Artists</span>
+          <div class="tags-wrapper" style="margin-top: 8px;">
+            {% for artist in card.shared_artists %}
+              <span class="tag-chip">{{ artist }}</span>
+            {% empty %}
+              <span class="tag-chip">No direct artist overlap — different taste, could be fun</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <span class="content-label">{{ card.user.first_name|default:card.user.username }}'s Top Artists</span>
+          <div class="tags-wrapper" style="margin-top: 8px;">
+            {% for artist in card.top_artists %}<span class="tag-chip">{{ artist.name }}</span>{% endfor %}
+          </div>
+        </div>
+        {% if card.top_tracks %}<div>
+          <span class="content-label">{{ card.user.first_name|default:card.user.username }}'s Top Tracks</span>
+          <div class="tags-wrapper" style="margin-top: 8px;">
+            {% for track in card.top_tracks %}<span class="tag-chip">{{ track.name }}</span>{% endfor %}
+          </div>
+        </div>{% endif %}
+      </div>
+    </div>
+
+    <div class="action-buttons" id="action-buttons">
+      <button class="btn-action btn-dislike" title="Pass"
+        onclick="document.getElementById('swipe-card')?.classList.add('swipe-left')"
+        hx-post="{% url 'spotify_match:swipe' %}"
+        hx-vals='{"to_user_id": "{{ card.user.id }}", "liked": "false"}'
+        hx-target="#tab-content" hx-swap="innerHTML swap:220ms"
+        hx-disabled-elt="#action-buttons button">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <button class="btn-action btn-like" title="Like"
+        onclick="document.getElementById('swipe-card')?.classList.add('swipe-right')"
+        hx-post="{% url 'spotify_match:swipe' %}"
+        hx-vals='{"to_user_id": "{{ card.user.id }}", "liked": "true"}'
+        hx-target="#tab-content" hx-swap="innerHTML swap:220ms"
+        hx-disabled-elt="#action-buttons button">
+        <i class="fa-solid fa-heart"></i>
+      </button>
+    </div>
+  </div>
+  {% include "users/safety/_sheet.html" with target=card.user next_url="/dashboard/" %}
+</section>
+{% else %}
+<section class="user-details-section">
+  <div class="empty-state" id="discover-empty">
+    <div class="empty-state-avatar">
+      <i class="fa-solid fa-music"></i>
+    </div>
+    {% if further_away %}
+      <h3>No one new nearby</h3>
+      <p>{{ further_away }} {% if further_away == 1 %}person who matches your sound is{% else %}people who match your sound are{% endif %} a bit further away than {{ request.user.max_distance_km }} km.</p>
+      <button type="button" class="btn-expand" hx-get="{% url 'spotify_match:tab_discover' %}?expand=1" hx-target="#tab-content" hx-swap="innerHTML">
+        <i class="fa-solid fa-earth-africa"></i> Show people further away
+      </button>
+    {% else %}
+      <h3>Still searching…</h3>
+      <p>We're looking for people whose taste lines up with yours. Check back once more friends join Music Luvers.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

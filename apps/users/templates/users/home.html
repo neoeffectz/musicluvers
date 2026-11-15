@@ -1,0 +1,186 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Music Luvers- Find Your Perfect Music Match</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  {% include "users/pwa/_head.html" %}
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v=20261114g">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- HTML Head Link -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .auth-card { margin-top: 28px; max-width: 420px; }
+    .auth-form { display: flex; flex-direction: column; gap: 12px; }
+    .auth-form[hidden] { display: none; }
+    .auth-form input { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 14px; color: #fff; font-family: inherit; font-size: 14px; }
+    .auth-form input:focus { outline: none; border-color: rgba(255,255,255,0.4); }
+    .auth-form .cta-button { border: none; cursor: pointer; font-family: inherit; }
+    .auth-error { color: #ffb4a8; font-size: 13px; }
+    .auth-switch { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 10px; }
+    .auth-switch a { color: #fff; }
+    .auth-legal { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; text-align: center; }
+    .auth-legal a { color: rgba(255,255,255,0.8); }
+    .auth-forgot { align-self: flex-end; font-size: 13px; color: rgba(255,255,255,0.75); }
+    .auth-notice { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px 14px; font-size: 14px; margin-bottom: 12px; }
+    .site-footer { text-align: center; padding: 20px 20px 28px; font-size: 12px; color: rgba(255,255,255,0.45); }
+    .site-footer a { color: rgba(255,255,255,0.6); margin: 0 8px; }
+    .password-field { position: relative; display: flex; }
+    .password-field input { flex: 1; padding-right: 44px; }
+    .password-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 8px; font-size: 15px; }
+    .password-toggle:hover, .password-toggle:focus-visible { color: #fff; }
+  </style>
+  <script>
+    function togglePassword(btn) {
+      const input = btn.parentElement.querySelector('input');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.querySelector('i').className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    }
+    function showAuth(mode) {
+      document.querySelectorAll('.auth-form').forEach(f => { f.hidden = f.dataset.mode !== mode; });
+    }
+  </script>
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="34" height="34" style="width:34px;height:34px;border-radius:8px;vertical-align:middle;flex-shrink:0;"> Music Luvers</div>
+    
+      <a href="#auth" class="signup-btn" onclick="showAuth('login')">Log In</a>
+  </header>
+
+  <main class="hero-container">
+
+    <section class="hero-content">
+      
+        <h1 class="hero-title">
+          Find Your <br><span class="highlight">Music</span> Soul Mate
+        </h1>
+        <p class="hero-subtitle">
+          Meet people who share your music taste. Start conversations based on your favorite tracks and connect with like-minded music lovers.
+        </p>
+        <div class="auth-card" id="auth">
+          {% if deleted %}<p class="auth-notice">Your account and everything in it has been deleted. Take care!</p>{% endif %}
+          <form method="post" action="{% url 'users:signup' %}" class="auth-form" data-mode="signup" {% if mode != "signup" %}hidden{% endif %}>
+            {% csrf_token %}
+            <input type="text" name="first_name" placeholder="First name" value="{{ signup_form.first_name.value|default:'' }}" required maxlength="150">
+            <input type="email" name="email" placeholder="Email" value="{{ signup_form.email.value|default:'' }}" required>
+            <div class="password-field">
+              <input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" autocomplete="new-password">
+              <button type="button" class="password-toggle" aria-label="Show password" onclick="togglePassword(this)"><i class="fa-solid fa-eye"></i></button>
+            </div>
+            {% for field in signup_form %}{% for err in field.errors %}<p class="auth-error">{{ err }}</p>{% endfor %}{% endfor %}
+            {% for err in signup_form.non_field_errors %}<p class="auth-error">{{ err }}</p>{% endfor %}
+            <button type="submit" class="cta-button">
+              <span class="cta-icon-wrapper"><i class="fa-solid fa-compact-disc spin-icon"></i></span>
+              <span class="cta-text">Create account</span>
+              <span class="cta-arrow"><i class="fa-solid fa-angles-right"></i></span>
+            </button>
+            <p class="auth-legal">By creating an account you agree to our <a href="{% url 'users:terms' %}">Terms</a> and <a href="{% url 'users:privacy' %}">Privacy Policy</a>. You must be 18 or older.</p>
+            <p class="auth-switch">Already have an account? <a href="#auth" onclick="showAuth('login')">Log in</a></p>
+          </form>
+
+          <form method="post" action="{% url 'users:login' %}" class="auth-form" data-mode="login" {% if mode != "login" %}hidden{% endif %}>
+            {% csrf_token %}
+            <input type="email" name="email" placeholder="Email" value="{{ login_form.email.value|default:'' }}" required>
+            <div class="password-field">
+              <input type="password" name="password" placeholder="Password" required autocomplete="current-password">
+              <button type="button" class="password-toggle" aria-label="Show password" onclick="togglePassword(this)"><i class="fa-solid fa-eye"></i></button>
+            </div>
+            {% for err in login_form.non_field_errors %}<p class="auth-error">{{ err }}</p>{% endfor %}
+            {% if email_enabled %}<a href="{% url 'users:password_reset' %}" class="auth-forgot">Forgot password?</a>{% endif %}
+            <button type="submit" class="cta-button">
+              <span class="cta-icon-wrapper"><i class="fa-solid fa-compact-disc spin-icon"></i></span>
+              <span class="cta-text">Log in</span>
+              <span class="cta-arrow"><i class="fa-solid fa-angles-right"></i></span>
+            </button>
+            <p class="auth-switch">New here? <a href="#auth" onclick="showAuth('signup')">Create an account</a></p>
+          </form>
+
+        </div>
+      
+    </section>
+
+    <section class="hero-gallery">
+      <div class="cards-wrapper">
+
+        <div class="profile-card card-jastin">
+          <img src="{% static 'blakman.png' %}" alt="Jastin, 28">
+          <div class="card-info">
+            <h3>Jastin, 28</h3>
+            <p class="music-tag"><i class="fa-solid fa-music"></i> Afrobeats</p>
+          </div>
+          <div class="floating-badge badge-vinyl left-middle">
+            <i class="fa-solid fa-record-vinyl spin-icon"></i>
+          </div>
+        </div>
+
+        <div class="profile-card card-julia">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=500&q=80" alt="Julia Lode, 27">
+          <span class="match-percentage">98% Match</span>
+          <div class="card-info">
+            <h3>Julia Lode, 27</h3>
+            <div class="now-playing">
+              <div class="playing-bars"><span></span><span></span><span></span></div>
+              <span class="track-name">SZA - Kill Bill</span>
+            </div>
+          </div>
+          <div class="floating-badge badge-message top-left"><i class="fa-solid fa-envelope"></i></div>
+          <div class="floating-badge badge-heart bottom-right"><i class="fa-solid fa-heart"></i></div>
+        </div>
+
+        <div class="profile-card card-sarah">
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80" alt="Sarah, 24">
+          <div class="card-info">
+            <h3>Sarah, 24</h3>
+            <p class="music-tag"><i class="fa-solid fa-sliders"></i> Hip-Hop</p>
+          </div>
+          <div class="floating-badge badge-message-blue left-middle"><i class="fa-solid fa-headphones"></i></div>
+        </div>
+
+        <div class="profile-card card-top-right">
+          <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80" alt="Ruth, 24">
+          <div class="card-info">
+            <h3>Ruth, 24</h3>
+            <p class="music-tag"><i class="fa-solid fa-radio"></i> R&B / Soul</p>
+          </div>
+          <div class="floating-badge badge-heart bottom-left"><i class="fa-solid fa-heart"></i></div>
+        </div>
+
+        <div class="profile-card card-sarch">
+          <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80" alt="Sarch, 24">
+          <div class="card-info">
+            <h3>Sarch, 24</h3>
+            <p class="music-tag"><i class="fa-solid fa-guitar"></i> Indie Rock</p>
+          </div>
+          <div class="floating-badge badge-heart-small bottom-right"><i class="fa-solid fa-heart"></i></div>
+        </div>
+
+        <div class="profile-card card-marcus">
+          <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80" alt="Marcus, 30">
+          <div class="card-info">
+            <h3>Marcus, 30</h3>
+            <p class="music-tag"><i class="fa-solid fa-wave-square"></i> Techno</p>
+          </div>
+        </div>
+
+        <div class="profile-card card-bottom-center">
+          <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80" alt="Profile">
+        </div>
+
+      </div>
+    </section>
+  </main>
+  {% include "users/pwa/_install_fab.html" %}
+  <footer class="site-footer">
+    <a href="{% url 'users:terms' %}">Terms</a> · <a href="{% url 'users:privacy' %}">Privacy</a> · © Music Luvers
+  </footer>
+</body>
+</html>
+

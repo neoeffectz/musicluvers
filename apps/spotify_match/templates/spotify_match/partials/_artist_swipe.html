@@ -1,0 +1,26 @@
+{% if error %}<p class="description-text" style="color:#ff8a80;">{{ error }}</p>{% endif %}
+{% if artist %}
+  <div style="display:flex; align-items:center; gap:14px; margin-top:10px;">
+    <div style="width:72px; height:72px; border-radius:50%; overflow:hidden; background:rgba(255,255,255,0.08); flex-shrink:0;">
+      {% if artist.image_url %}<img src="{{ artist.image_url }}" alt="" style="width:100%; height:100%; object-fit:cover;">{% endif %}
+    </div>
+    <div style="flex:1; min-width:0;">
+      <strong style="display:block; font-size:16px;">{{ artist.name }}</strong>
+      <span class="description-text" style="color:#8e8e93; font-size:12px;">{{ artist.genre_label }}</span>
+    </div>
+    <div class="action-buttons" id="artist-deck-buttons" style="margin:0; gap:10px;">
+      <button class="btn-action btn-dislike" title="Not for me" style="width:44px; height:44px;"
+        hx-post="{% url 'spotify_match:artist_swipe' %}" hx-vals='{"artist_id": "{{ artist.external_id|escapejs }}", "liked": "false"}'
+        hx-target="#artist-deck" hx-disabled-elt="#artist-deck-buttons button">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <button class="btn-action btn-like" title="I like them" style="width:44px; height:44px;"
+        hx-post="{% url 'spotify_match:artist_swipe' %}" hx-vals='{"artist_id": "{{ artist.external_id|escapejs }}", "liked": "true"}'
+        hx-target="#artist-deck" hx-disabled-elt="#artist-deck-buttons button">
+        <i class="fa-solid fa-heart"></i>
+      </button>
+    </div>
+  </div>
+{% else %}
+  <p class="description-text" style="margin-top:6px;">You've been through all of them. <a href="{% url 'spotify_match:build_taste' %}?step=genres" style="color:#f3582c;">Pick more genres</a> for new ones.</p>
+{% endif %}
