@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 from django.contrib.auth import login
-from . import accounts, geocode, safety, services
+from . import accounts, analytics, geocode, safety, services
 from .forms import AboutYouForm, LoginForm, PhotoForm, SignupForm
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ def signup(request):
     user = form.save()
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     accounts.send_verification(request, user)
+    analytics.track(request, "signed_up")
     return redirect("users:about_you")
 
 
@@ -49,6 +50,7 @@ def about_you(request):
                 "preference": data["preference"],
                 "birthdate": data["birthdate"].isoformat(),
             })
+            analytics.track(request, "profile_completed")
             return redirect("spotify_match:build_taste")
         status = 400
     else:
@@ -113,6 +115,7 @@ def login_view(request):
             "signup_form": SignupForm(), "login_form": form, "mode": "login",
         }, status=400)
     login(request, form.user, backend="django.contrib.auth.backends.ModelBackend")
+    analytics.track(request, "logged_in")
     return redirect("spotify_match:dashboard")
 
 

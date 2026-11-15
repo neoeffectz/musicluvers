@@ -12,6 +12,7 @@ from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from apps.users.models import CustomUser
 from apps.events import bus, catalog
+from apps.users import analytics
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,11 @@ def swipe_partial(request):
         context["matched_user"] = result["matched_user"]
         context["matches"] = services.get_matches(request.user)
 
-    return render(request, "spotify_match/partials/swipe_result.html", context)
+    response = render(request, "spotify_match/partials/swipe_result.html", context)
+    analytics.track_response(response, "liked" if liked else "passed")
+    if result["matched"]:
+        analytics.track_response(response, "matched")
+    return response
 
 
 @login_required(login_url="users:home")
@@ -273,6 +278,7 @@ def taste_finish(request):
     except ValueError as e:
         return render(request, "spotify_match/build_taste.html",
                       _build_taste_context(request.user, step="artists", error=str(e)), status=400)
+    analytics.track(request, "artists_added", artists=request.user.top_artists.count())
     if not request.user.prompts.exists():
         return redirect("spotify_match:taste_songs")
     return redirect("spotify_match:dashboard")
@@ -304,6 +310,7 @@ def connect_lastfm(request):
         user.lastfm_username = username
         user.save(update_fields=["lastfm_username"])
         bus.publish(catalog.TASTE_SOURCE_CONNECTED, user_id=str(user.id), source="lastfm")
+    analytics.track(request, "lastfm_connected")
     return redirect("spotify_match:dashboard")
 
 
@@ -382,6 +389,7 @@ def songs_done(request):
     user = request.user
     if user.prompts.exists() and user.top_artists.exists():
         services.publish_taste_change(user)
+    analytics.track(request, "songs_added", songs=user.prompts.count())
     return redirect("spotify_match:dashboard")
 
 

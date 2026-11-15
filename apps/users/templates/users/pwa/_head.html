@@ -9,4 +9,5 @@
 {% if push_enabled %}<meta name="ml-vapid-key" content="{{ vapid_public_key }}">{% endif %}
 {% if user.is_authenticated %}<meta name="ml-signed-in" content="1">{% endif %}
 <script src="{% static 'js/pwa.js' %}?v=20261114g" defer></script>
+{% include "users/partials/_analytics.html" %}
 <script src="{% static 'js/loading.js' %}?v=20261114h" defer></script>

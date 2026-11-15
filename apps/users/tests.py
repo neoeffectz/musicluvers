@@ -685,3 +685,80 @@ class DeployFilesTests(TestCase):
         for needle in ["type: web", "type: worker", "runtime: docker", "dockerCommand: celery -A config worker -B",
                        "key: FERNET_KEY", "key: VAPID_PRIVATE_KEY", "config.settings.prod"]:
             self.assertIn(needle, text)
+
+
+class AnalyticsOffTests(TestCase):
+    """No PostHog key (local dev / tests): no script, nothing queued."""
+    def test_no_script_and_no_queue_without_key(self):
+        self.client.post("/signup/", {"first_name": "Ada", "email": "ada@example.com", "password": "tune-lover-2026"})
+        self.assertNotIn("ml_track", self.client.session)
+        page = self.client.get("/welcome/about/")
+        self.assertNotContains(page, "analytics.js")
+        self.assertNotContains(page, "mlAnalytics")
+
+
+@override_settings(POSTHOG_KEY="phc_test", POSTHOG_HOST="https://us.i.posthog.com")
+@mock.patch("apps.spotify_match.handlers.push_to_user")
+@mock.patch("apps.messaging.handlers.get_channel_layer")
+class AnalyticsOnTests(EagerEventsMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        from apps.spotify_match import services as match
+        self.match = match
+        self.ada = music_person("ada", "woman", "man")
+        self.bayo = music_person("bayo", "man", "woman")
+        match.recompute_scores_for_user(self.ada)
+
+    def test_every_kind_of_page_loads_the_script(self, *_):
+        for path in ["/", "/terms/", "/privacy/"]:
+            self.assertContains(self.client.get(path), "js/analytics.js", msg_prefix=path)
+        self.client.force_login(self.ada)
+        for path in ["/dashboard/", "/matches/", "/messages/"]:
+            page = self.client.get(path)
+            self.assertContains(page, "js/analytics.js", msg_prefix=path)
+            self.assertContains(page, f'user: "{self.ada.id}"', msg_prefix=path)  # random id only
+            self.assertNotContains(page, 'user: "ada@example.com"')
+
+    def test_signup_event_is_sent_once_from_the_next_page(self, *_):
+        self.client.post("/signup/", {"first_name": "Ada", "email": "new@example.com", "password": "tune-lover-2026"})
+        first = self.client.get("/welcome/about/")
+        self.assertContains(first, '"event": "signed_up"')
+        second = self.client.get("/welcome/about/")
+        self.assertNotContains(second, "signed_up")
+
+    def test_like_and_match_come_back_as_htmx_events(self, layer, _):
+        import json
+        layer.return_value.group_send = mock.AsyncMock()
+        with self.run_events():
+            self.match.record_swipe(self.bayo, self.ada.id, True)
+        self.client.force_login(self.ada)
+        with self.run_events():
+            response = self.client.post("/dashboard/swipe/", {"to_user_id": str(self.bayo.id), "liked": "true"})
+        events = [e["event"] for e in json.loads(response["HX-Trigger"])["ml:track"]["events"]]
+        self.assertEqual(events, ["liked", "matched"])
+
+    def test_message_event_never_carries_the_text(self, layer, _):
+        import json
+        from apps.messaging.models import Conversation
+        layer.return_value.group_send = mock.AsyncMock()
+        with self.run_events():
+            self.match.record_swipe(self.ada, self.bayo.id, True)
+            self.match.record_swipe(self.bayo, self.ada.id, True)
+        a, b = sorted([self.ada, self.bayo], key=lambda u: str(u.id))
+        convo = Conversation.objects.create(user_a=a, user_b=b)
+        self.client.force_login(self.ada)
+        with self.run_events():
+            response = self.client.post(f"/messages/send/{convo.id}/", {"body": "my secret love note"})
+        self.assertEqual(json.loads(response["HX-Trigger"])["ml:track"]["events"], [{"event": "message_sent", "props": {}}])
+        self.assertNotIn("secret", response["HX-Trigger"])
+
+    def test_existing_htmx_trigger_is_kept(self, *_):
+        import json
+        from django.http import HttpResponse
+        from . import analytics
+        response = HttpResponse()
+        response["HX-Trigger"] = "notificationsChanged"
+        analytics.track_response(response, "liked")
+        triggers = json.loads(response["HX-Trigger"])
+        self.assertIn("notificationsChanged", triggers)
+        self.assertEqual(triggers["ml:track"]["events"][0]["event"], "liked")

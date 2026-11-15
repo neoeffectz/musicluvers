@@ -1,0 +1,5 @@
+{% load static analytics_tags %}{% if posthog_key %}{% pending_analytics as ml_events %}
+{{ ml_events|json_script:"ml-events" }}
+<script>window.mlAnalytics = {key: "{{ posthog_key|escapejs }}", host: "{{ posthog_host|escapejs }}", user: "{% if user.is_authenticated %}{{ user.id }}{% endif %}"};</script>
+<script src="{% static 'js/analytics.js' %}?v=20261115a" defer></script>
+{% endif %}

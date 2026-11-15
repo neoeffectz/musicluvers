@@ -7,6 +7,7 @@ from apps.users.models import CustomUser
 from . import services
 from .models import *
 from apps.spotify_match import services as match_services
+from apps.users import analytics
 
 
 import logging
@@ -81,12 +82,15 @@ def send_message_view(request, conversation_id):
             return HttpResponseBadRequest(str(e))
 
     thread_messages, has_more_older = services.get_messages(conversation, request.user)
-    return render(request, "messaging/partials/_thread_messages.html", {
+    response = render(request, "messaging/partials/_thread_messages.html", {
         "thread_messages": thread_messages,
         "has_more_older": has_more_older,
         "active_conversation": conversation,
         "request": request,
     })
+    if body:
+        analytics.track_response(response, "message_sent")  # the event only — never the text
+    return response
 
 @login_required(login_url="users:home")
 def thread_partial(request, conversation_id):

@@ -18,6 +18,10 @@ envVarGroups:
         value: Music Luvers <hello@musicluvers.site>
       - key: RESEND_DOMAIN_VERIFIED
         value: "False"              # set to True once musicluvers.site shows Verified in Resend
+      - key: POSTHOG_KEY            # visitor analytics; this key is public by design
+        value: phc_r3xLooqy4Yd9WtLCvYnJdK8s3ViSmxjEN8QbqanMG6Sh
+      - key: POSTHOG_HOST           # change to https://eu.i.posthog.com if your PostHog is on EU
+        value: https://us.i.posthog.com
       - key: DJANGO_SECRET_KEY      # generated once by Render, shared by web + worker
         generateValue: true
 

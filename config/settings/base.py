@@ -186,3 +186,11 @@ PUSH_ENABLED = bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)
 # Sessions: read from the in-process cache first and only fall back to the database on a miss.
 # Saves a database round trip on almost every request (each one costs ~0.3s from Nigeria to Neon in the US).
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+
+# ---------------------------------------------------------------------------
+# Visitor analytics (PostHog). The project key is public by design (it's sent to every browser).
+# Empty = off: local dev has no key, so testing never counts as visitors. Set in render.yaml.
+POSTHOG_KEY = env("POSTHOG_KEY", default="")
+POSTHOG_HOST = env("POSTHOG_HOST", default="https://us.i.posthog.com")
+
+
