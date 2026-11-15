@@ -12,6 +12,18 @@
     </div>
 
     <div class="user-info-block">
+      {% load music_tags %}{% music_answers user as my_answers %}
+      <div>
+        <div class="profile-answers-head">
+          <span class="content-label">Your music answers</span>
+          <a href="{% url 'spotify_match:dashboard' %}?tab=sound">{% if my_answers %}Edit{% else %}Add{% endif %} in My Sound <i class="fa-solid fa-chevron-right"></i></a>
+        </div>
+        {% if my_answers %}
+          {% include "spotify_match/partials/_card_prompts.html" with prompts=my_answers %}
+        {% else %}
+          <p class="profile-answers-empty">People see your songs on your profile. <a href="{% url 'spotify_match:dashboard' %}?tab=sound">Answer a few in My Sound</a>.</p>
+        {% endif %}
+      </div>
       <div>
         <span class="content-label">Photos</span>
         <div class="tags-wrapper photo-grid" style="margin-top: 8px;">
@@ -31,7 +43,7 @@
       <form class="profile-form" hx-post="{% url 'users:profile_update' %}" hx-target="#tab-content" hx-swap="innerHTML" hx-encoding="multipart/form-data">
         <div>
           <span class="content-label">Add a photo</span>
-          <input type="file" name="photo" accept="image/*" class="profile-input">
+          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="profile-input">
         </div>
 
         <div>

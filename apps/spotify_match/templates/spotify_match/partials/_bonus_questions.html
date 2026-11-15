@@ -1,0 +1,24 @@
+{% comment %}
+  The 3 extra questions in My Sound. Locked until the rising artist / 10/10 album / wedding questions
+  are answered; then they appear right away (sent along with the answer that unlocked them).
+{% endcomment %}
+<div id="bonus-questions" class="bonus-questions{% if unlocked %} is-open{% endif %}"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if unlocked %}
+    <div class="bonus-head">
+      <i class="fa-solid fa-lock-open"></i>
+      <div><strong>3 more questions unlocked</strong><span>More answers, better matches.</span></div>
+    </div>
+    <div class="prompt-stack">
+      {% for p in bonus_prompts %}{% include "spotify_match/partials/_prompt_card.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="bonus-locked" role="status">
+      <span class="bonus-lock-icon"><i class="fa-solid fa-lock"></i></span>
+      <div>
+        <strong>3 more questions to unlock</strong>
+        <span>{% if unlock_progress %}{{ unlock_progress }} of {{ unlock_total }} done. Answer {{ unlock_to_go }} more{% else %}Answer the rising artist, 10/10 album and wedding song{% endif %} to unlock them.</span>
+        <div class="bonus-dots" aria-hidden="true">{% for i in "123" %}<i class="{% if forloop.counter <= unlock_progress %}done{% endif %}"></i>{% endfor %}</div>
+      </div>
+    </div>
+  {% endif %}
+</div>

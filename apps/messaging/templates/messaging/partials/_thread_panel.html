@@ -28,7 +28,7 @@
         hx-post="{% url 'messaging:send' conversation_id=active_conversation.id %}"
         hx-target="#thread-messages"
         hx-swap="innerHTML"
-        hx-on::after-request="this.reset()">
+        hx-on::after-request="if (event.detail.successful) this.reset()">
     <input type="text" name="body" placeholder="Type a message…" autocomplete="off" required maxlength="2000">
     <button type="submit" class="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
   </form>

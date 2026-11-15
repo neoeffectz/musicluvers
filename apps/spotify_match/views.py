@@ -63,17 +63,51 @@ def dashboard(request):
     })
 
 
+def _bonus_context(user, oob=False):
+    """The 3 unlockable questions: the questions themselves once unlocked, or a locked teaser."""
+    shown, unlocked, progress = services.my_sound_prompts(user)
+    total = len(ProfilePrompt.MORE_PROMPTS)
+    return {
+        "unlocked": unlocked,
+        "bonus_prompts": [p for p in shown if p["key"] in ProfilePrompt.BONUS_PROMPTS],
+        "unlock_progress": progress, "unlock_total": total, "unlock_to_go": total - progress,
+        "oob": oob,
+    }
+
+
 def _my_sound_context(request, stats=None):
     user = request.user
     stats = stats or services.taste_stats(user)
-    prompts = services.prompts_with_answers(user)
+    shown, _, _ = services.my_sound_prompts(user)
     return {
         "user": user,
         "display_name": user.first_name or user.username,
-        "prompts": prompts,
-        "answered_count": sum(1 for p in prompts if p["answer"]),
+        "prompts": shown,
+        "main_prompts": [p for p in shown if p["key"] not in ProfilePrompt.BONUS_PROMPTS],
+        "answered_count": sum(1 for p in shown if p["answer"]),
+        **_bonus_context(user),
         **stats,
     }
+
+
+def _with_bonus_update(request, key, response, unlocked_before):
+    """After answering/clearing one of the unlock questions, update the bonus area in the same response:
+    unlock the 3 extra questions, move the "x of 3" teaser, or lock them again."""
+    if key not in ProfilePrompt.MORE_PROMPTS + ProfilePrompt.BONUS_PROMPTS:
+        return response
+    unlocked_now = services.bonus_unlocked(request.user)
+    if unlocked_before:
+        # Already open: leave it alone. Tapping "Change" clears an answer for a moment, and the bonus
+        # questions shouldn't vanish (or lose a half-typed search) while someone picks a new song.
+        return response
+    if key in ProfilePrompt.BONUS_PROMPTS and not unlocked_now:
+        return response
+    from django.template.loader import render_to_string
+    response.content += render_to_string("spotify_match/partials/_bonus_questions.html",
+                                         _bonus_context(request.user, oob=True), request=request).encode()
+    if unlocked_now and not unlocked_before:
+        analytics.track_response(response, "bonus_questions_unlocked")
+    return response
 
 
 @login_required(login_url="users:home")
@@ -248,7 +282,7 @@ def taste_search(request):
 def taste_add(request):
     artist_id = request.POST.get("artist_id", "")
     if not SPOTIFY_ID.match(artist_id):
-        return HttpResponseBadRequest("Invalid artist.")
+        return HttpResponseBadRequest("Couldn't find that artist. Try another one.")
     existing = services.manual_artists(request.user).filter(external_id=artist_id).first()
     if existing and request.POST.get("toggle"):
         services.remove_manual_artist(request.user, existing.id)
@@ -344,7 +378,7 @@ def taste_songs(request):
 def song_search(request):
     key = request.GET.get("prompt", "")
     if key not in services.prompt_labels():
-        return HttpResponseBadRequest("Unknown prompt.")
+        return HttpResponseBadRequest("That question isn't available. Refresh the page.")
     try:
         results = artist_search.search_answers(services.prompt_kind(key), request.GET.get("q", ""))
         error = None
@@ -362,25 +396,27 @@ def song_set(request):
     key = request.POST.get("prompt", "")
     track_id = request.POST.get("track_id", "")
     if key not in services.prompt_labels() or not SPOTIFY_ID.match(track_id):
-        return HttpResponseBadRequest("Invalid song.")
+        return HttpResponseBadRequest("Couldn't find that song. Try another one.")
     kind = services.prompt_kind(key)
+    unlocked_before = services.bonus_unlocked(request.user)
     try:
         services.set_prompt(request.user, key, artist_search.get_answer(kind, track_id))
     except requests.exceptions.RequestException:
         logger.exception("Answer lookup failed")
         return _prompt_card(request, key, f"Couldn't save that {kind}. Try again.")
     services.rescore_if_ready(request.user)  # same song as someone = higher score, live
-    return _prompt_card(request, key)
+    return _with_bonus_update(request, key, _prompt_card(request, key), unlocked_before)
 
 
 @login_required(login_url="users:home")
 @require_POST
 def song_clear(request, prompt):
     if prompt not in services.prompt_labels():
-        return HttpResponseBadRequest("Unknown prompt.")
+        return HttpResponseBadRequest("That question isn't available. Refresh the page.")
+    unlocked_before = services.bonus_unlocked(request.user)
     services.clear_prompt(request.user, prompt)
     services.rescore_if_ready(request.user)
-    return _prompt_card(request, prompt)
+    return _with_bonus_update(request, prompt, _prompt_card(request, prompt), unlocked_before)
 
 
 @login_required(login_url="users:home")
@@ -427,7 +463,7 @@ def artist_deck(request):
 def artist_swipe(request):
     artist_id = request.POST.get("artist_id", "")
     if not SPOTIFY_ID.match(artist_id):
-        return HttpResponseBadRequest("Invalid artist.")
+        return HttpResponseBadRequest("Couldn't find that artist. Try another one.")
     if request.POST.get("liked") == "true":
         try:
             services.add_manual_artist(request.user, _catalog_artist_with_genres(artist_id))

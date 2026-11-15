@@ -80,13 +80,48 @@ class AboutYouForm(forms.Form):
         return birthdate
 
 
+# Still photos only. We look at the file's first bytes (not the name or the type the browser claims),
+# so a renamed video, or a moving GIF/WebP, is turned away.
+HEIF_BRANDS = {b"heic", b"heix", b"heim", b"heis", b"mif1", b"msf1", b"hevc", b"avif"}  # iPhone HEIC / AVIF
+VIDEO_MESSAGE = "Videos can't be used. Pick a photo (JPG or PNG)."
+NOT_PHOTO_MESSAGE = "That file isn't a photo. Pick a JPG or PNG."
+
+
+def photo_problem(head):
+    """Returns None for a still JPG/PNG/WebP photo, otherwise the message to show."""
+    if head.startswith(b"\xff\xd8\xff"):  # JPEG
+        return None
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return VIDEO_MESSAGE if b"acTL" in head[:200] else None  # acTL = animated PNG
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        if head[12:16] == b"VP8X" and len(head) > 20 and head[20] & 0x02:  # animation flag
+            return VIDEO_MESSAGE
+        return None
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "Moving GIFs can't be used. Pick a photo (JPG or PNG)."
+    if head[4:8] == b"ftyp":  # MP4 / MOV / HEIC all start like this; the brand tells them apart
+        if head[8:12] in HEIF_BRANDS:
+            # Most browsers can't show HEIC. Phones convert to JPG for us (the picker doesn't list HEIC).
+            return "That's an iPhone HEIC photo, which most phones can't show. Pick it from your phone's photos, or use a JPG or PNG."
+        return VIDEO_MESSAGE
+    if head[:4] in (b"\x1aE\xdf\xa3", b"RIFF") or head[:3] == b"FLV":  # WebM/MKV, AVI, FLV
+        return VIDEO_MESSAGE
+    return NOT_PHOTO_MESSAGE
+
+
 class PhotoForm(forms.Form):
     photo = forms.FileField()
 
     def clean_photo(self):
         photo = self.cleaned_data["photo"]
-        if not (photo.content_type or "").startswith("image/"):
-            raise forms.ValidationError("That file isn't a photo. Pick a JPG or PNG.")
+        if (photo.content_type or "").startswith("video/"):
+            raise forms.ValidationError(VIDEO_MESSAGE)
         if photo.size > MAX_PHOTO_BYTES:
             raise forms.ValidationError("That photo is over 10 MB. Pick a smaller one.")
+        photo.seek(0)
+        head = photo.read(512)
+        photo.seek(0)
+        problem = photo_problem(head)
+        if problem:
+            raise forms.ValidationError(problem)
         return photo

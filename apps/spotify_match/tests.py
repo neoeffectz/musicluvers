@@ -643,17 +643,25 @@ class MoreSongQuestionsTests(TestCase):
         self.assertNotIn("warm hug", signup)
         sound = self.client.get("/dashboard/tab/sound/").content.decode()
         for label in ["A song that makes me dance", "An underrated song people should know", "The anthem of my life",
-                      "A song that feels like a warm hug", "A rising artist the world should know", "A 10/10 album",
+                      "A rising artist the world should know", "A 10/10 album",
                       "A song that must be played at my wedding"]:
             self.assertIn(label.replace("'", "&#x27;"), sound)
-        self.assertIn("0 of 7 answered", sound)
+        self.assertNotIn("warm hug", sound)
+        self.assertNotIn("My road trip song", sound)  # locked until the 3 My Sound questions are answered
+        self.assertIn("3 more questions to unlock", sound)
+        self.assertIn("0 of 6 answered", sound)
 
     @mock.patch("apps.spotify_match.artist_search.get_track", return_value=catalog_track("k1"))
     def test_answer_extra_question_from_my_sound(self, _):
-        response = self.client.post("/taste/songs/set/", {"prompt": "warm_hug", "track_id": "k1"})
+        response = self.client.post("/taste/songs/set/", {"prompt": "wedding", "track_id": "k1"})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(ProfilePrompt.objects.get(user=self.user).prompt, "warm_hug")
-        self.assertIn("1 of 7 answered", self.client.get("/dashboard/tab/sound/").content.decode())
+        self.assertEqual(ProfilePrompt.objects.get(user=self.user).prompt, "wedding")
+        self.assertIn("1 of 6 answered", self.client.get("/dashboard/tab/sound/").content.decode())
+
+    def test_warm_hug_can_no_longer_be_answered(self):
+        response = self.client.post("/taste/songs/set/", {"prompt": "warm_hug", "track_id": "k1"})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(ProfilePrompt.objects.exists())
 
 
 class DashboardTabParamTests(TestCase):
@@ -818,7 +826,7 @@ class AnswersMatchTests(TestCase):
         self.assertEqual(self.score().display_score, 40)
 
     def test_same_song_any_question(self):
-        answer(self.a, "warm_hug", "Essence", "Wizkid")
+        answer(self.a, "road_trip", "Essence", "Wizkid")
         answer(self.b, "wedding", "essence ", "WizKid")
         s = self.score()
         self.assertIn("You both picked “Essence”", s.shared_answers)
@@ -845,12 +853,12 @@ class AnswersMatchTests(TestCase):
         for i, name in enumerate(["Rema", "Burna Boy", "Davido"]):  # Ben already has Asake
             TopArtist.objects.create(user=self.b, external_id=f"extra-{i}", name=name, rank=10 + i)
         for i, artist in enumerate(["Asake", "Rema", "Burna Boy", "Davido"]):
-            answer(self.a, ["dance", "underrated", "anthem", "warm_hug"][i], f"Song {i}", artist)
+            answer(self.a, ["dance", "underrated", "anthem", "throwback"][i], f"Song {i}", artist)
         s = self.score()
         self.assertEqual(s.display_score, 40 + 9)  # 4 x 3 points, capped at 9
 
     def test_answers_bonus_is_capped(self):
-        for prompt in ["dance", "underrated", "anthem", "warm_hug"]:
+        for prompt in ["dance", "underrated", "anthem", "throwback"]:
             answer(self.a, prompt, f"Track {prompt}", "X")
             answer(self.b, prompt, f"Track {prompt}", "X")
         s = self.score()
@@ -912,13 +920,119 @@ class PageSpeedTests(TestCase):
 
 
 class QuestionOrderTests(TestCase):
-    def test_warm_hug_is_last_on_my_sound(self):
+    def test_my_sound_order_with_bonus_questions_last(self):
         user = make_user("ada", first_name="Ada")
         make_artists(user, ["Wizkid"])
+        for key in ProfilePrompt.MORE_PROMPTS:
+            answer(user, key, f"Pick {key}", "Someone")
         self.client.force_login(user)
         page = self.client.get("/dashboard/tab/sound/").content.decode()
         order = ["A song that makes me dance", "An underrated song people should know", "The anthem of my life",
                  "A rising artist the world should know", "A 10/10 album", "A song that must be played at my wedding",
-                 "A song that feels like a warm hug"]
+                 "An artist I&#x27;d travel to see live", "A throwback that still slaps", "My road trip song"]
         positions = [page.index(label) for label in order]
         self.assertEqual(positions, sorted(positions))
+
+
+def fake_answer(kind, item_id):
+    return {"track_id": item_id, "track_name": f"Pick {item_id}", "artist_name": "Someone", "image_url": None}
+
+
+@mock.patch("apps.spotify_match.artist_search.get_answer", side_effect=fake_answer)
+class BonusQuestionsTests(TestCase):
+    """warm hug is gone; answering the 3 My Sound questions unlocks 3 more, right away."""
+    def setUp(self):
+        self.user = make_user("ada", first_name="Ada")
+        make_artists(self.user, ["Wizkid"])
+        self.client.force_login(self.user)
+
+    def pick(self, prompt, item="abc123"):
+        return self.client.post("/taste/songs/set/", {"prompt": prompt, "track_id": item}).content.decode()
+
+    def test_teaser_counts_up_then_the_last_answer_unlocks_three_more(self, _):
+        first = self.pick("rising_artist", "ar1")
+        self.assertIn('id="bonus-questions"', first)
+        self.assertIn("1 of 3 done", first)
+        second = self.pick("album", "al1")
+        self.assertIn("2 of 3 done", second)
+        third = self.pick("wedding", "tr1")
+        self.assertIn('hx-swap-oob="true"', third)
+        self.assertIn("3 more questions unlocked", third)
+        for label in ["An artist I&#x27;d travel to see live", "A throwback that still slaps", "My road trip song"]:
+            self.assertIn(label, third)
+        page = self.client.get("/dashboard/tab/sound/").content.decode()
+        self.assertIn("My road trip song", page)
+        self.assertIn("0 of 9 answered".replace("0", "3"), page)
+
+    def test_signup_questions_dont_touch_the_bonus_area(self, _):
+        self.assertNotIn("bonus-questions", self.pick("dance"))
+
+    def test_changing_an_answer_after_unlocking_keeps_bonus_questions(self, _):
+        for key in ProfilePrompt.MORE_PROMPTS:
+            self.pick(key)
+        cleared = self.client.post("/taste/songs/clear/wedding/").content.decode()
+        self.assertNotIn("bonus-questions", cleared)  # nothing vanishes while picking a new song
+
+    def test_bonus_answers_keep_them_unlocked(self, _):
+        self.pick("live_artist", "ar9")
+        self.assertTrue(services.bonus_unlocked(self.user))
+        self.assertIn("An artist I&#x27;d travel to see live", self.client.get("/dashboard/tab/sound/").content.decode())
+
+
+class BonusQuestionMatchingTests(TestCase):
+    def setUp(self):
+        self.a = make_user("ada", first_name="Ada", gender="woman", preference="man")
+        self.b = make_user("ben", first_name="Ben", gender="man", preference="woman")
+        make_artists(self.a, ["Tems"])
+        make_artists(self.b, ["Asake"])
+
+    def score(self):
+        services.recompute_scores_for_user(self.a)
+        return MatchScore.objects.get()
+
+    def test_same_live_artist_counts(self):
+        answer(self.a, "live_artist", "Burna Boy")
+        answer(self.b, "live_artist", "burna boy")
+        s = self.score()
+        self.assertIn("You'd both travel to see Burna Boy live", s.shared_answers)
+        self.assertEqual(s.display_score, 50)
+
+    def test_same_throwback_song_counts(self):
+        answer(self.a, "throwback", "African Queen", "2Baba")
+        answer(self.b, "road_trip", "African Queen", "2Baba")
+        self.assertIn("You both picked “African Queen”", self.score().shared_answers)
+
+    def test_old_warm_hug_answers_no_longer_count_or_show(self):
+        answer(self.a, "warm_hug", "Essence", "Wizkid")
+        answer(self.b, "warm_hug", "Essence", "Wizkid")
+        s = self.score()
+        self.assertEqual(s.shared_answers, [])
+        self.assertEqual(s.display_score, 40)
+        self.assertEqual(services.answered_prompts(self.a), [])
+
+
+class AnswerCardsTests(TestCase):
+    def setUp(self):
+        self.me = make_user("ada", first_name="Ada")
+        make_artists(self.me, ["Wizkid"])
+        self.client.force_login(self.me)
+
+    def test_profile_cards_lead_with_the_anthem_and_link_to_spotify(self):
+        answer(self.me, "dance", "Last Last", "Burna Boy", item_id="3NKmsBCHTzxrX9gEPgjwyb")
+        answer(self.me, "anthem", "Free Mind", "Tems", item_id="0SZsfRXh0Wyy1ZnsJ6QaF4")
+        answer(self.me, "live_artist", "Asake", item_id="3a1tBryiczPAZpgoZN9Rzg")
+        prompts = services.answered_prompts(self.me)
+        self.assertEqual([p.prompt for p in prompts], ["anthem", "dance", "live_artist"])
+        self.assertEqual(prompts[0].spotify_url, "https://open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4")
+        self.assertEqual(prompts[2].spotify_url, "https://open.spotify.com/artist/3a1tBryiczPAZpgoZN9Rzg")
+
+    def test_profile_tab_shows_your_answers_like_others_see_them(self):
+        empty = self.client.get("/profile/tab/").content.decode()
+        self.assertIn("Your music answers", empty)
+        self.assertIn("Answer a few in My Sound", empty)
+        answer(self.me, "anthem", "Free Mind", "Tems", item_id="0SZsfRXh0Wyy1ZnsJ6QaF4")
+        page = self.client.get("/profile/tab/").content.decode()
+        self.assertIn("answer-card", page)
+        self.assertIn("Free Mind", page)
+        self.assertIn("open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4", page)
+        self.assertIn("?tab=sound", page)

@@ -134,7 +134,15 @@ def profile_update(request):
     if request.user.max_distance_km != old_distance:
         request.session.pop("discover_expand", None)
     if request.FILES.get("photo"):
-        services.add_profile_photo(request.user, request.FILES["photo"])
+        photo_form = PhotoForm(request.POST, request.FILES)  # same checks as the sign-up photo step
+        if not photo_form.is_valid():
+            errors.append((photo_form.errors.get("photo") or ["Pick a photo first."])[0])
+        else:
+            try:
+                services.add_profile_photo(request.user, photo_form.cleaned_data["photo"])
+            except Exception:
+                logger.exception("Profile photo upload to storage failed")
+                errors.append("Couldn't upload that photo. Try another one.")
     request.user.refresh_from_db()
     return render(request, "users/partials/_profile_tab.html", {
         "user": request.user, "errors": errors, "saved": not errors,
@@ -294,3 +302,16 @@ def logout_view(request):
     from django.contrib.auth import logout
     logout(request)
     return redirect("/?login=1")
+
+
+def csrf_failure(request, reason=""):
+    """Django's security check failed — almost always a page left open too long, or logged in/out in
+    another tab. Taps (htmx) get a short message for the pop-up; normal forms get a friendly page."""
+    from django.http import HttpResponse
+    message = "This page expired. Refresh it and try again."
+    if request.headers.get("HX-Request"):
+        return HttpResponse(message, status=403, content_type="text/plain")
+    return render(request, "users/errors/page.html", {
+        "code": 403, "title": "This page expired",
+        "text": "For your safety, pages that sit open for a long time expire. Go back, refresh the page, and try again.",
+    }, status=403)

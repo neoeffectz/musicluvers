@@ -105,8 +105,8 @@ def _genre_set(user):
 
 def _track_set(user):
     names = list(TopTrack.objects.filter(user=user).values_list("name", flat=True))
-    names += ProfilePrompt.objects.filter(user=user).exclude(
-        prompt__in=list(ProfilePrompt.PROMPT_KINDS)).values_list("track_name", flat=True)
+    song_questions = [key for key, _ in ProfilePrompt.PROMPT_CHOICES if key not in ProfilePrompt.PROMPT_KINDS]
+    names += ProfilePrompt.objects.filter(user=user, prompt__in=song_questions).values_list("track_name", flat=True)
     return _normalized(names)
 
 
@@ -141,12 +141,22 @@ def _fold(text):
     return " ".join((text or "").split()).casefold()
 
 
+def _active_prompts(user):
+    """Answers to questions we still ask (answers to a retired question, e.g. "warm hug", are ignored).
+    Filters in Python so a prefetched `prompts` list costs no extra query."""
+    current = dict(ProfilePrompt.PROMPT_CHOICES)
+    return [p for p in user.prompts.all() if p.prompt in current]
+
+
 def _answers(user):
     """The user's question answers grouped by kind, keyed so the same pick matches across people."""
-    out = {"song": {}, "artist": {}, "album": {}, "by": {}}
-    for p in user.prompts.all():
+    out = {"song": {}, "artist": {}, "live": {}, "album": {}, "by": {}}
+    for p in _active_prompts(user):
         main_artist = (p.artist_name or "").split(",")[0].strip()
-        if p.kind == "artist":
+        if p.prompt == "live_artist":
+            out["live"][_fold(p.track_name)] = p.track_name
+            out["by"][_fold(p.track_name)] = p.track_name  # counts if the other person listens to them
+        elif p.kind == "artist":
             out["artist"][_fold(p.track_name)] = p.track_name
         elif p.kind == "album":
             out["album"][(_fold(p.track_name), _fold(main_artist))] = p.track_name
@@ -169,6 +179,9 @@ def _answer_matches(a, b, a_artists, b_artists, shared_artists):
     for key in sorted(mine["album"].keys() & theirs["album"].keys()):
         points += SAME_ALBUM_POINTS
         reasons.append(f"Same 10/10 album: {mine['album'][key]}")
+    for key in sorted(mine["live"].keys() & theirs["live"].keys()):
+        points += SAME_RISING_ARTIST_POINTS
+        reasons.append(f"You'd both travel to see {mine['live'][key]} live")
     same_rising = mine["artist"].keys() & theirs["artist"].keys()
     for key in sorted(same_rising):
         points += SAME_RISING_ARTIST_POINTS
@@ -324,7 +337,7 @@ def prompt_labels():
 def set_prompt(user, prompt, track):
     """`track` comes from the catalog lookup, never straight from the browser."""
     if prompt not in prompt_labels():
-        raise ValueError("Unknown prompt.")
+        raise ValueError("That question isn't available. Refresh the page.")
     ProfilePrompt.objects.update_or_create(user=user, prompt=prompt, defaults=track)
 
 
@@ -347,9 +360,28 @@ def prompt_kind(key):
 _PROMPT_ORDER = {key: i for i, (key, _) in enumerate(ProfilePrompt.PROMPT_CHOICES)}
 
 
+_DISPLAY_ORDER = {key: i for i, key in enumerate(ProfilePrompt.DISPLAY_ORDER)}
+
+
 def answered_prompts(user):
-    """The user's answered song questions in question order (for profile cards)."""
-    return sorted(user.prompts.all(), key=lambda p: _PROMPT_ORDER.get(p.prompt, 99))
+    """The user's answers for profile cards, anthem first (Tinder-style profile song)."""
+    return sorted(_active_prompts(user), key=lambda p: _DISPLAY_ORDER.get(p.prompt, _PROMPT_ORDER.get(p.prompt, 99)))
+
+
+def bonus_unlocked(user, answers=None):
+    """The 3 bonus questions appear once the 3 My Sound questions are answered
+    (and stay, if someone already answered a bonus one and later clears an earlier answer)."""
+    answered = {p.prompt for p in _active_prompts(user)} if answers is None else answers
+    return set(ProfilePrompt.MORE_PROMPTS) <= answered or bool(answered & set(ProfilePrompt.BONUS_PROMPTS))
+
+
+def my_sound_prompts(user):
+    """(questions to show in My Sound, unlocked?, how many of the 3 unlock questions are answered)."""
+    prompts = prompts_with_answers(user)
+    answered = {p["key"] for p in prompts if p["answer"]}
+    unlocked = bonus_unlocked(user, answered)
+    shown = [p for p in prompts if unlocked or p["key"] not in ProfilePrompt.BONUS_PROMPTS]
+    return shown, unlocked, len(answered & set(ProfilePrompt.MORE_PROMPTS))
 
 
 # SWIPE SERVICE
@@ -432,11 +464,11 @@ def record_swipe(from_user, to_user_id, liked: bool):
     try:
         to_user = CustomUser.objects.get(id=to_user_id)
     except (CustomUser.DoesNotExist, ValidationError, ValueError):
-        raise ValueError("Unknown user.")
+        raise ValueError("That profile isn't available anymore.")
     if to_user.id == from_user.id:
         raise ValueError("You can't swipe on yourself.")
     if safety.is_blocked_pair(from_user, to_user):
-        raise ValueError("Unknown user.")
+        raise ValueError("That profile isn't available anymore.")
 
     matched = False
     with transaction.atomic():

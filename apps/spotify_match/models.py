@@ -96,19 +96,33 @@ class ProfilePrompt(models.Model):
         ("dance", "A song that makes me dance"),
         ("underrated", "An underrated song people should know"),
         ("anthem", "The anthem of my life"),
-        # Extra questions, answered from My Sound (not asked during signup)
+        # Answered in My Sound (not asked during signup)
         ("rising_artist", "A rising artist the world should know"),
         ("album", "A 10/10 album"),
         ("wedding", "A song that must be played at my wedding"),
-        ("warm_hug", "A song that feels like a warm hug"),
+        # Unlocked in My Sound once the three above are answered
+        ("live_artist", "An artist I'd travel to see live"),
+        ("throwback", "A throwback that still slaps"),
+        ("road_trip", "My road trip song"),
     ]
     SIGNUP_PROMPTS = ("dance", "underrated", "anthem")
+    MORE_PROMPTS = ("rising_artist", "album", "wedding")
+    BONUS_PROMPTS = ("live_artist", "throwback", "road_trip")
+    # Order on profile cards: the anthem leads, like a profile song.
+    DISPLAY_ORDER = ("anthem", "dance", "underrated", "wedding", "album", "rising_artist",
+                     "live_artist", "throwback", "road_trip")
     # Everything else is answered with a song.
-    PROMPT_KINDS = {"rising_artist": "artist", "album": "album"}
+    PROMPT_KINDS = {"rising_artist": "artist", "live_artist": "artist", "album": "album"}
 
     @property
     def kind(self):
         return self.PROMPT_KINDS.get(self.prompt, "song")
+
+    @property
+    def spotify_url(self):
+        """Listen link for the answer (answers always come from Spotify's catalog)."""
+        path = {"artist": "artist", "album": "album"}.get(self.kind, "track")
+        return f"https://open.spotify.com/{path}/{self.track_id}" if self.track_id else ""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="prompts")

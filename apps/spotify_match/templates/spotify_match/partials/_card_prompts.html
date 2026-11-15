@@ -1,12 +1,27 @@
-{% for prompt in prompts %}
-  <div>
-    <span class="content-label">{{ prompt.get_prompt_display }}</span>
-    <div class="answer-row kind-{{ prompt.kind }}">
-      {% if prompt.image_url %}<img src="{{ prompt.image_url }}" alt="">{% endif %}
-      <div>
-        <strong>{{ prompt.track_name }}</strong>
-        <span>{% if prompt.kind == "artist" %}Artist{% elif prompt.kind == "album" %}Album · {{ prompt.artist_name }}{% else %}{{ prompt.artist_name }}{% endif %}</span>
+{% comment %}
+  Someone's music answers as Tinder-style cards (anthem first). Used on Discover, the profile page and
+  your own Profile tab. `prompts` = services.answered_prompts(user).
+{% endcomment %}
+{% if prompts %}
+<div class="answer-cards">
+  {% for prompt in prompts %}
+    <article class="answer-card kind-{{ prompt.kind }}{% if forloop.first %} is-lead{% endif %}">
+      <span class="answer-q">{{ prompt.get_prompt_display }}</span>
+      <div class="answer-main">
+        {% if prompt.image_url %}
+          <img class="answer-art" src="{{ prompt.image_url }}" alt="" loading="lazy">
+        {% else %}
+          <span class="answer-art answer-art-empty"><i class="fa-solid {% if prompt.kind == 'artist' %}fa-microphone-lines{% elif prompt.kind == 'album' %}fa-compact-disc{% else %}fa-music{% endif %}"></i></span>
+        {% endif %}
+        <div class="answer-text">
+          <strong>{{ prompt.track_name }}</strong>
+          <span>{% if prompt.kind == "artist" %}Artist{% elif prompt.kind == "album" %}Album · {{ prompt.artist_name }}{% else %}{{ prompt.artist_name }}{% endif %}</span>
+        </div>
+        {% if prompt.spotify_url %}
+          <a class="answer-listen" href="{{ prompt.spotify_url }}" target="_blank" rel="noopener" aria-label="Listen to {{ prompt.track_name }} on Spotify" title="Listen on Spotify"><i class="fa-solid fa-play"></i></a>
+        {% endif %}
       </div>
-    </div>
-  </div>
-{% endfor %}
+    </article>
+  {% endfor %}
+</div>
+{% endif %}

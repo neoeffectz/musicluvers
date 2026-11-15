@@ -49,7 +49,7 @@
       <div>
         <span class="field-label">A photo of you <span style="color:#8e8e93; font-weight:400;">(optional, you can add more later)</span></span>
         <div class="photo-picker" id="photo-picker" data-upload-url="{% url 'users:about_you_photo' %}" data-photo-id="{{ photo.id|default:'' }}">
-          <input type="file" id="photo" aria-label="Choose a photo of you" title="Choose a photo">
+          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp" aria-label="Choose a photo of you" title="Choose a photo">
           <span class="photo-preview" id="photo-preview">
             {% if photo %}<img src="{{ photo.image.url }}" alt="">{% else %}<i class="fa-solid fa-camera"></i>{% endif %}
           </span>
@@ -100,6 +100,8 @@
       async function upload(file) {
         if (busy) return;
         error.hidden = true;
+        if (file.type.startsWith('video/')) return fail("Videos can't be used. Pick a photo (JPG or PNG).");
+        if (file.type === 'image/gif') return fail("Moving GIFs can't be used. Pick a photo (JPG or PNG).");
         if (file.type && !file.type.startsWith('image/')) return fail("That file isn't a photo. Pick a JPG or PNG.");
         if (file.size > MAX) return fail('That photo is over 10 MB. Pick a smaller one.');
 

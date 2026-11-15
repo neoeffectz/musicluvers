@@ -52,11 +52,12 @@
         <span class="content-label">Your songs <span class="songs-progress">{{ answered_count }} of {{ prompts|length }} answered</span></span>
         <p class="description-text" style="color:#8e8e93; margin:4px 0 10px;">Answer as many as you like. Same song as someone = a better match.</p>
         <div class="prompt-stack">
-          {% for p in prompts %}{% include "spotify_match/partials/_prompt_card.html" %}{% endfor %}
+          {% for p in main_prompts %}{% include "spotify_match/partials/_prompt_card.html" %}{% endfor %}
         </div>
+        {% include "spotify_match/partials/_bonus_questions.html" %}
       </div>
       <script>
-        // Keep "X of 7 answered" right as songs/artists/albums are picked or changed.
+        // Keep "X of N answered" right as songs/artists/albums are picked or changed (and when more unlock).
         (() => {
           const box = document.getElementById('my-songs');
           const recount = () => {

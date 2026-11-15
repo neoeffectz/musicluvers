@@ -70,13 +70,13 @@ def send_message_view(request, conversation_id):
     if request.user.id not in [conversation.user_a_id, conversation.user_b_id]:
         return redirect("messaging:messages")
     if not services._is_matched(request.user, services.get_other_user(conversation, request.user)):
-                return redirect("messaging:messages")
+        return HttpResponseForbidden("You can't message this person anymore.", content_type="text/plain")
     body = request.POST.get("body", "").strip()
     if body:
         try:
             services.send_message(conversation, request.user, body)
         except PermissionError:
-            return redirect("messaging:messages")
+            return HttpResponseForbidden("You can't message this person anymore.", content_type="text/plain")
         except ValueError as e:
             from django.http import HttpResponseBadRequest
             return HttpResponseBadRequest(str(e))

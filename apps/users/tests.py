@@ -164,7 +164,7 @@ class AboutYouPhotoTests(TestCase):
         self.client.force_login(self.user)
 
     def _jpeg(self, name="me.jpg"):
-        return SimpleUploadedFile(name, b"fake-jpeg-bytes", content_type="image/jpeg")
+        return SimpleUploadedFile(name, b"\xff\xd8\xff\xe0\x00\x10JFIF\x00fake-jpeg-body", content_type="image/jpeg")
 
     @mock.patch("apps.users.services.add_profile_photo")
     def test_uploads_right_away_and_returns_stored_url(self, add_photo):
@@ -762,3 +762,122 @@ class AnalyticsOnTests(EagerEventsMixin, TestCase):
         triggers = json.loads(response["HX-Trigger"])
         self.assertIn("notificationsChanged", triggers)
         self.assertEqual(triggers["ml:track"]["events"][0]["event"], "liked")
+
+
+class FriendlyErrorTests(TestCase):
+    def setUp(self):
+        self.user = music_person("err", "woman", "man")
+
+    @override_settings(DEBUG=False)
+    def test_unknown_page_shows_friendly_404(self):
+        response = self.client.get("/no-such-page/")
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "We can't find that page", status_code=404)
+        self.assertContains(response, "Back to Music Luvers", status_code=404)
+
+    def test_500_page_renders_without_request_context(self):
+        from django.template import loader
+        html = loader.get_template("500.html").render()
+        self.assertIn("Something went wrong on our side", html)
+
+    def test_expired_login_during_a_tap_becomes_a_full_page_change(self):
+        response = self.client.get("/dashboard/tab/discover/", HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["HX-Redirect"].startswith("/"))
+        self.assertEqual(response.content, b"")
+
+    def test_normal_redirects_are_untouched(self):
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("HX-Redirect", response)
+
+    def test_expired_form_shows_friendly_page_and_short_message_for_taps(self):
+        from django.test import Client
+        strict = Client(enforce_csrf_checks=True)
+        strict.force_login(self.user)
+        page = strict.post("/profile/update/")
+        self.assertContains(page, "This page expired", status_code=403)
+        tap = strict.post("/profile/update/", HTTP_HX_REQUEST="true")
+        self.assertEqual(tap.status_code, 403)
+        self.assertEqual(tap.content.decode(), "This page expired. Refresh it and try again.")
+
+    def test_profile_tab_rejects_non_photo_with_a_message(self):
+        self.client.force_login(self.user)
+        bad = SimpleUploadedFile("notes.pdf", b"%PDF-1.4", content_type="application/pdf")
+        response = self.client.post("/profile/update/", {"photo": bad}, HTTP_HX_REQUEST="true")
+        self.assertContains(response, "a photo. Pick a JPG or PNG.")
+        self.assertEqual(self.user.photos.count(), 0)
+
+    def test_profile_tab_storage_failure_shows_a_message(self):
+        self.client.force_login(self.user)
+        with mock.patch("apps.users.services.add_profile_photo", side_effect=RuntimeError("cloudinary down")):
+            response = self.client.post("/profile/update/", {
+                "photo": SimpleUploadedFile("me.png", b"\x89PNG\r\n\x1a\n", content_type="image/png")}, HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "upload that photo. Try another one.")
+
+    def test_every_app_page_loads_the_error_popup(self):
+        self.client.force_login(self.user)
+        for path in ["/dashboard/", "/matches/", "/messages/"]:
+            self.assertContains(self.client.get(path), "js/errors.js", msg_prefix=path)
+
+
+class PhotosOnlyTests(TestCase):
+    """Only still photos: checked from the file's real contents, not its name or claimed type."""
+    JPG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 64
+    PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"\x00" * 64
+    APNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"\x00" * 17 + b"\x00\x00\x00\x08acTL" + b"\x00" * 32
+    WEBP = b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"\x00" * 64
+    WEBP_ANIMATED = b"RIFF\x24\x00\x00\x00WEBPVP8X\x0a\x00\x00\x00\x02" + b"\x00" * 64
+    GIF = b"GIF89a" + b"\x00" * 64
+    MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 64
+    MOV = b"\x00\x00\x00\x14ftypqt  " + b"\x00" * 64
+    HEIC = b"\x00\x00\x00\x18ftypheic" + b"\x00" * 64
+    WEBM = b"\x1aE\xdf\xa3" + b"\x00" * 64
+    PDF = b"%PDF-1.4" + b"\x00" * 64
+
+    def form(self, data, name="me.jpg", content_type="image/jpeg"):
+        from .forms import PhotoForm
+        return PhotoForm({}, {"photo": SimpleUploadedFile(name, data, content_type=content_type)})
+
+    def test_still_photos_are_accepted(self):
+        for label, data in [("jpg", self.JPG), ("png", self.PNG), ("webp", self.WEBP)]:
+            self.assertTrue(self.form(data).is_valid(), label)
+
+    def test_videos_are_refused_even_when_renamed_to_jpg(self):
+        for label, data in [("mp4", self.MP4), ("mov", self.MOV), ("webm", self.WEBM)]:
+            form = self.form(data, name="holiday.jpg", content_type="image/jpeg")
+            self.assertFalse(form.is_valid(), label)
+            self.assertIn("Videos can't be used", form.errors["photo"][0], label)
+
+    def test_video_type_is_refused_straight_away(self):
+        form = self.form(self.JPG, name="clip.mp4", content_type="video/mp4")
+        self.assertIn("Videos can't be used", form.errors["photo"][0])
+
+    def test_moving_pictures_are_refused(self):
+        self.assertIn("Moving GIFs", self.form(self.GIF, content_type="image/gif").errors["photo"][0])
+        self.assertIn("Videos can't be used", self.form(self.WEBP_ANIMATED).errors["photo"][0])
+        self.assertIn("Videos can't be used", self.form(self.APNG).errors["photo"][0])
+
+    def test_heic_gets_a_helpful_message(self):
+        self.assertIn("HEIC", self.form(self.HEIC, name="IMG_1.HEIC", content_type="image/heic").errors["photo"][0])
+
+    def test_other_files_are_refused(self):
+        self.assertIn("isn't a photo", self.form(self.PDF, content_type="image/jpeg").errors["photo"][0])
+
+    def test_signup_photo_upload_refuses_a_video(self):
+        user = CustomUser.objects.create_user(username="v@example.com", email="v@example.com", password="x")
+        self.client.force_login(user)
+        with mock.patch("apps.users.services.add_profile_photo") as add:
+            response = self.client.post("/welcome/about/photo/", {
+                "photo": SimpleUploadedFile("clip.jpg", self.MP4, content_type="image/jpeg")})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Videos can't be used", response.json()["error"])
+        add.assert_not_called()
+
+    def test_pickers_only_offer_photos(self):
+        user = music_person("pick", "woman", "man")
+        self.client.force_login(user)
+        for path in ["/welcome/about/", "/profile/tab/"]:
+            page = self.client.get(path)
+            self.assertContains(page, 'accept="image/jpeg,image/png,image/webp"', msg_prefix=path)
