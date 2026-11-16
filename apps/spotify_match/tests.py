@@ -1034,13 +1034,16 @@ class AnswerCardsTests(TestCase):
         self.assertEqual(prompts[0].spotify_url, "https://open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4")
         self.assertEqual(prompts[2].spotify_url, "https://open.spotify.com/artist/3a1tBryiczPAZpgoZN9Rzg")
 
-    def test_profile_tab_shows_your_answers_like_others_see_them(self):
-        empty = self.client.get("/profile/tab/").content.decode()
-        self.assertIn("Your music answers", empty)
-        self.assertIn("Answer a few in My Sound", empty)
+    def test_own_profile_tab_does_not_repeat_your_answers(self):
         answer(self.me, "anthem", "Free Mind", "Tems", item_id="0SZsfRXh0Wyy1ZnsJ6QaF4")
         page = self.client.get("/profile/tab/").content.decode()
-        self.assertIn("answer-card", page)
+        self.assertNotIn("Free Mind", page)  # they live in My Sound
+
+    def test_other_peoples_answers_have_a_play_button(self):
+        other = make_user("ben", first_name="Ben")
+        answer(other, "anthem", "Free Mind", "Tems", item_id="0SZsfRXh0Wyy1ZnsJ6QaF4")
+        a, b = sorted([self.me, other], key=lambda u: str(u.id))
+        Match.objects.create(user_a=a, user_b=b)  # profile pages open for matches
+        page = self.client.get(f"/user/{other.id}/").content.decode()
         self.assertIn("Free Mind", page)
-        self.assertIn("open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4", page)
-        self.assertIn("?tab=sound", page)
+        self.assertIn('class="answer-play" href="https://open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4"', page)
