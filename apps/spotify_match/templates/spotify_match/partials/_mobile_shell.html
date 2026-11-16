@@ -1,4 +1,4 @@
-{% load static %}
+{% load static notif_tags %}
 {% comment %}
 Phone-only top bar (logo + bell) and bottom tab bar, shared by every signed-in page.
   active      = discover | matches | messages | sound | profile
@@ -19,7 +19,8 @@ Phone-only top bar (logo + bell) and bottom tab bar, shared by every signed-in p
   {% endif %}
 
   <a href="{% url 'spotify_match:all_matches' %}" class="m-tab{% if active == 'matches' %} active{% endif %}"><i class="fa-solid fa-heart"></i><span>Matches</span></a>
-  <a href="{% url 'messaging:messages' %}" class="m-tab{% if active == 'messages' %} active{% endif %}"><i class="fa-solid fa-comment"></i><span>Messages</span></a>
+  {% has_unread_messages as unread_msgs %}
+  <a href="{% url 'messaging:messages' %}" class="m-tab{% if active == 'messages' %} active{% elif unread_msgs %} has-new{% endif %}" data-tab="messages"><i class="fa-solid fa-comment"></i><span>Messages</span></a>
 
   {% if on_dashboard %}
     <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="m-tab{% if active == 'sound' %} active{% endif %}" data-tab="sound"

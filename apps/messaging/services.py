@@ -90,13 +90,19 @@ def live_payload(message):
 
 
 def deliver_live(message):
-    """Push a message to everyone with this chat open. Best effort: the background worker repeats it."""
+    """Push a message to everyone with this chat open, and tell the recipient's other open pages (inbox
+    list, Messages tab dot) straight away. Best effort: the background worker repeats the chat delivery
+    and sends the bell + phone notification."""
     import logging
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
+    from apps.events.realtime import push_to_user
+    conversation = message.conversation
+    recipient_id = conversation.user_b_id if conversation.user_a_id == message.sender_id else conversation.user_a_id
     try:
         async_to_sync(get_channel_layer().group_send)(
             f"conversation_{message.conversation_id}", {"type": "chat_message", "message": live_payload(message)})
+        push_to_user(recipient_id, "new_message", conversation_id=str(message.conversation_id))
     except Exception:
         logging.getLogger(__name__).exception("Live delivery failed for message %s; the worker will retry", message.id)
 

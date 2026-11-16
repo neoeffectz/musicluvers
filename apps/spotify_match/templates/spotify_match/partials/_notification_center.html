@@ -59,6 +59,10 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNotif
         refreshNotificationBadge();
         if (!document.getElementById("notif-panel").hidden) loadNotifications();
       }
+      if ((event.kind === "new_message" || event.kind === "notification") && event.conversation_id
+          && !location.pathname.startsWith("/messages")) {
+        document.querySelectorAll('[data-tab="messages"]').forEach(el => el.classList.add("has-new"));
+      }
       if (typeof window.onUserEvent === "function") window.onUserEvent(event);
     };
     socket.onclose = () => {

@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116b">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
@@ -237,7 +237,7 @@ connectToConversation("{{ active_conversation.id }}");
 
 // A new message for the chat you're looking at is already read; anything else refreshes the inbox.
 window.onUserEvent = async (event) => {
-  if (event.kind !== "notification") return;
+  if (event.kind !== "notification" && event.kind !== "new_message") return;
   if (event.conversation_id && event.conversation_id === currentConversationId) {
     await fetch(`/messages/read/${event.conversation_id}/`, { method: "POST", headers: { "X-CSRFToken": getCookie("csrftoken") } });
     refreshNotificationBadge();

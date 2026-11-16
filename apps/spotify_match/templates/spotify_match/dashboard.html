@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116b">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
   <!-- Google Fonts & FontAwesome Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,7 +24,7 @@
     });
     </script>
 </head>
-<body>
+{% load notif_tags %}{% has_unread_messages as unread_msgs %}<body>
 
   <!-- LEFT SIDEBAR -->
   <aside class="sidebar">
@@ -39,7 +39,7 @@
         <div><i class="fa-solid fa-fire"></i> Discover</div>
       </a>
       
-      <a href="{% url 'messaging:messages' %}" class="nav-item" data-tab="messages">
+      <a href="{% url 'messaging:messages' %}" class="nav-item{% if unread_msgs %} has-new{% endif %}" data-tab="messages">
         <div><i class="fa-regular fa-comment"></i> Messages</div>
       </a>
       <a href="#" class="nav-item" data-tab="sound"
@@ -62,7 +62,7 @@
     <header class="top-header">
       <nav class="top-nav">
         <a href="#" class="active" data-tab="discover" hx-get="{% url 'spotify_match:tab_discover' %}" hx-target="#tab-content" hx-swap="innerHTML">Discover</a>
-        <a href="{% url 'messaging:messages' %}" data-tab="messages">Messages</a>
+        <a href="{% url 'messaging:messages' %}" data-tab="messages"{% if unread_msgs %} class="has-new"{% endif %}>Messages</a>
         <a href="#" data-tab="sound" hx-get="{% url 'spotify_match:tab_sound' %}" hx-target="#tab-content" hx-swap="innerHTML">My Sound</a>
         <a href="#" data-tab="profile" hx-get="{% url 'users:profile_tab' %}" hx-target="#tab-content" hx-swap="innerHTML">Profile</a>
       </nav>
@@ -156,7 +156,7 @@ function setActiveTab(clickedEl) {
   });
   
   const tabKey = clickedEl.dataset.tab;
-  if (tabKey === 'discover') document.querySelectorAll('.has-new').forEach(el => el.classList.remove('has-new'));
+  if (tabKey === 'discover') document.querySelectorAll('[data-tab="discover"].has-new').forEach(el => el.classList.remove('has-new'));
   if (tabKey) {
     document.querySelectorAll(`[data-tab="${tabKey}"]`).forEach(el => el.classList.add('active'));
   }

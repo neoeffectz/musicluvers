@@ -446,35 +446,95 @@ SEED = [
 ]
 
 
-@mock.patch("apps.spotify_match.taste_catalog.suggestions_for_genre", return_value=SEED)
+def _resolve_seed(name):
+    return next((dict(a) for a in SEED if a["name"] == name), None)
+
+
+@mock.patch("apps.spotify_match.taste_catalog._in_background")  # no real lookups after the test
+@mock.patch("apps.spotify_match.taste_catalog.resolve_artist", side_effect=_resolve_seed)
+@mock.patch("apps.spotify_match.taste_catalog.artist_pool", return_value=["Burna Boy", "Wizkid"])
 class ArtistDeckTests(EagerEventsMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.user = make_user("alice", favorite_genres=["afrobeats"])
         self.client.force_login(self.user)
 
-    def test_pass_moves_to_next_artist(self, _):
-        self.assertEqual(self.client.get("/dashboard/artists/").context["artist"]["external_id"], "sp1")
-        response = self.client.post("/dashboard/artists/swipe/", {"artist_id": "sp1", "liked": "false"})
-        self.assertEqual(response.context["artist"]["external_id"], "sp2")
+    def test_pass_moves_to_another_artist(self, *_):
+        first = self.client.get("/dashboard/artists/").context["artist"]["external_id"]
+        response = self.client.post("/dashboard/artists/swipe/", {"artist_id": first, "liked": "false"})
+        self.assertEqual(response.context["artist"]["external_id"], ({"sp1", "sp2"} - {first}).pop())
         self.assertFalse(services.manual_artists(self.user).exists())
+        last = self.client.post("/dashboard/artists/swipe/", {"artist_id": response.context["artist"]["external_id"], "liked": "false"})
+        self.assertIsNone(last.context["artist"])  # passed on everyone: "you've been through all of them"
 
     @mock.patch("apps.spotify_match.artist_search.get_artist", side_effect=lambda artist_id: dict(SEED[0]))
-    def test_like_adds_artist_and_skips_it(self, _, __):
+    def test_like_adds_artist_and_skips_it(self, *_):
         response = self.client.post("/dashboard/artists/swipe/", {"artist_id": "sp1", "liked": "true"})
         self.assertEqual(services.manual_artists(self.user).get().name, "Burna Boy")
         self.assertEqual(response.context["artist"]["external_id"], "sp2")
 
     @mock.patch("apps.spotify_match.artist_search.get_artist", side_effect=lambda artist_id: catalog_artist(artist_id[-1]))
-    def test_like_rescores_once_taste_is_big_enough(self, _, __):
+    def test_like_rescores_once_taste_is_big_enough(self, *_):
         make_artists(self.user, [])
         for i in (3, 4):
             services.add_manual_artist(self.user, catalog_artist(i))
         self.client.post("/dashboard/artists/swipe/", {"artist_id": "sp1", "liked": "true"})
         self.assertEqual(len(self.published(catalog.TASTE_PROFILE_UPDATED)), 1)
 
-    def test_rejects_bad_ids(self, _):
+    def test_rejects_bad_ids(self, *_):
         self.assertEqual(self.client.post("/dashboard/artists/swipe/", {"artist_id": "<x>", "liked": "true"}).status_code, 400)
+
+
+class RandomArtistDeckTests(TestCase):
+    """The deck shows random artists from the person's genres, not the same starter list in order."""
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.names = [f"Act {i}" for i in range(40)]
+
+    def deck(self, **kwargs):
+        resolve = lambda name: {"external_id": "id-" + name.replace(" ", ""), "name": name, "image_url": None}
+        with mock.patch("apps.spotify_match.taste_catalog.artist_pool", return_value=self.names), \
+             mock.patch("apps.spotify_match.taste_catalog.resolve_artist", side_effect=resolve):
+            return taste_catalog.random_deck_artist(["afrobeats"], **kwargs)
+
+    def test_picks_vary(self):
+        picks = {self.deck()["name"] for _ in range(20)}
+        self.assertGreater(len(picks), 8)
+
+    def test_skips_artists_you_have_or_passed(self):
+        skip = self.names[:-1]
+        for _ in range(5):
+            self.assertEqual(self.deck(skip_names=skip)["name"], "Act 39")
+        self.assertIsNone(self.deck(skip_names=self.names))
+        self.assertEqual(self.deck(skip_ids={"id-Act" + str(i) for i in range(39)}, tries=200)["name"], "Act 39")
+
+    def test_labels_the_genre(self):
+        self.assertEqual(self.deck()["genre_label"], "Afrobeats")
+
+    @override_settings(LASTFM_API_KEY="k")
+    def test_pool_adds_lastfm_artists_for_the_genre(self):
+        page = {"topartists": {"artist": [{"name": "Victony"}, {"name": "Burna Boy"}, {"name": "Qing Madi"}]}}
+        with mock.patch("apps.spotify_match.lastfm._call", return_value=page) as call, \
+             mock.patch("apps.spotify_match.taste_catalog._in_background", side_effect=lambda fn, *a: fn(*a)):
+            first = taste_catalog.artist_pool("afrobeats")   # builds (here: right away instead of in a thread)
+            pool = taste_catalog.artist_pool("afrobeats")    # then served from the cache
+        self.assertEqual(first[0], "Burna Boy")
+        self.assertIn("Victony", pool)
+        self.assertIn("Davido", pool)                               # starter list kept
+        self.assertEqual([n.casefold() for n in pool].count("burna boy"), 1)  # no duplicates
+        self.assertEqual(call.call_args.kwargs["tag"], "afrobeats")
+
+    @override_settings(LASTFM_API_KEY="")
+    def test_pool_without_lastfm_is_the_starter_list(self):
+        self.assertEqual(taste_catalog.artist_pool("amapiano")[0], "Kabza De Small")
+
+    @override_settings(LASTFM_API_KEY="k")
+    def test_nobody_waits_for_lastfm(self):
+        with mock.patch("apps.spotify_match.taste_catalog._in_background") as bg:
+            pool = taste_catalog.artist_pool("rnb")
+        self.assertEqual(pool[0], "SZA")       # starter list straight away
+        bg.assert_called_once()                # full list built behind the scenes
 
 
 class TasteCatalogTests(TestCase):
@@ -1096,3 +1156,36 @@ class FastScoringTests(EagerEventsMixin, TestCase):
         services._upsert_score(self.ada, ben)
         single = MatchScore.objects.values("display_score", "shared_artists", "shared_tracks", "shared_answers").get()
         self.assertEqual(bulk, single)
+
+
+@mock.patch("apps.spotify_match.taste_catalog._in_background")  # no real lookups after the test
+@mock.patch("apps.spotify_match.taste_catalog.resolve_artist", side_effect=_resolve_seed)
+@mock.patch("apps.spotify_match.taste_catalog.artist_pool", return_value=["Burna Boy", "Wizkid"])
+class DeckRemembersPassedNamesTests(TestCase):
+    def test_passed_names_are_skipped_without_looking_them_up_again(self, _, resolve, __):
+        self.client.force_login(make_user("alice", favorite_genres=["afrobeats"]))
+        self.client.post("/dashboard/artists/swipe/", {"artist_id": "sp1", "artist_name": "Burna Boy", "liked": "false"})
+        resolve.reset_mock()
+        response = self.client.get("/dashboard/artists/")
+        self.assertEqual(response.context["artist"]["name"], "Wizkid")
+        self.assertNotIn(mock.call("Burna Boy"), resolve.call_args_list)
+
+
+class DeckReadyInAdvanceTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_next_cards_are_picked_and_fetched_in_the_background(self):
+        with mock.patch("apps.spotify_match.taste_catalog.artist_pool", return_value=["A1", "A2", "A3", "A4", "A5"]), \
+             mock.patch("apps.spotify_match.taste_catalog._in_background") as bg:
+            picks = taste_catalog.plan_next_cards(["afrobeats"], skip_names=["A1"])
+        self.assertEqual(len(picks), 3)
+        self.assertNotIn("A1", [name for name, _ in picks])
+        bg.assert_called_once()
+
+    def test_a_ready_card_is_shown_first(self):
+        resolve = lambda name: {"external_id": "id" + name, "name": name, "image_url": None}
+        with mock.patch("apps.spotify_match.taste_catalog.resolve_artist", side_effect=resolve):
+            artist = taste_catalog.random_deck_artist(["afrobeats"], queue=[("Ready One", "afrobeats")])
+        self.assertEqual(artist["name"], "Ready One")

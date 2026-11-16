@@ -113,9 +113,9 @@
 }
 
 /* "Someone new in Discover" dot */
-[data-tab="discover"].has-new { position: relative; }
-[data-tab="discover"].has-new::after { content: ""; position: absolute; top: 8px; right: calc(50% - 18px); width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2px var(--bg); }
-.nav-item[data-tab="discover"].has-new::after, .top-nav [data-tab="discover"].has-new::after { top: 2px; right: -10px; }
+[data-tab].has-new { position: relative; }
+[data-tab].has-new::after { content: ""; position: absolute; top: 8px; right: calc(50% - 18px); width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2px var(--bg); }
+.nav-item[data-tab].has-new::after, .top-nav [data-tab].has-new::after { top: 2px; right: -10px; }
 
 /* "Use my location" (Profile tab) */
 .locate-btn { margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1px solid rgba(243,88,44,0.5); background: rgba(243,88,44,0.08); color: #f3582c; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }

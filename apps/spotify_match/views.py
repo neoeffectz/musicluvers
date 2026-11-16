@@ -200,6 +200,8 @@ def unmatch_view(request, user_id):
 
 SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{1,64}$")
 PASSED_ARTISTS_SESSION_KEY = "passed_artist_ids"
+PASSED_NAMES_SESSION_KEY = "passed_artist_names"  # lets the deck skip them without looking them up again
+DECK_QUEUE_SESSION_KEY = "artist_deck_queue"      # next cards, already being looked up
 MAX_PASSED_ARTISTS = 300
 LASTFM_USERNAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{1,14}$")
 
@@ -433,15 +435,22 @@ def songs_done(request):
 
 
 def _next_deck_artist(request):
+    """A random new artist from the person's genres (not one they have or passed on). The next few are
+    picked now and fetched in the background, so tapping ✗/♥ shows the next artist without waiting."""
     user = request.user
     passed = request.session.get(PASSED_ARTISTS_SESSION_KEY, [])
-    known = set(user.top_artists.values_list("external_id", flat=True)) | set(passed)
-    genres = user.favorite_genres or [key for key, _, _ in taste_catalog.GENRES]
+    mine = list(user.top_artists.values_list("external_id", "name"))
+    skip_names = [name for _, name in mine] + request.session.get(PASSED_NAMES_SESSION_KEY, [])
+    queue = [tuple(item) for item in request.session.get(DECK_QUEUE_SESSION_KEY, [])]
     try:
-        for genre in genres:
-            for artist in taste_catalog.suggestions_for_genre(genre):
-                if artist["external_id"] not in known:
-                    return {**artist, "genre_label": taste_catalog.GENRE_LABELS[genre]}
+        artist = taste_catalog.random_deck_artist(
+            user.favorite_genres, skip_ids={external_id for external_id, _ in mine} | set(passed),
+            skip_names=skip_names, queue=queue,
+        )
+        shown = [artist["name"]] if artist else []
+        request.session[DECK_QUEUE_SESSION_KEY] = [list(p) for p in taste_catalog.plan_next_cards(
+            user.favorite_genres, skip_names=skip_names + shown)]
+        return artist
     except requests.exceptions.RequestException:
         logger.exception("Artist deck failed")
     return None
@@ -476,4 +485,8 @@ def artist_swipe(request):
     else:
         passed = request.session.get(PASSED_ARTISTS_SESSION_KEY, [])
         request.session[PASSED_ARTISTS_SESSION_KEY] = (passed + [artist_id])[-MAX_PASSED_ARTISTS:]
+        name = " ".join(request.POST.get("artist_name", "").split())[:120]
+        if name:
+            names = request.session.get(PASSED_NAMES_SESSION_KEY, [])
+            request.session[PASSED_NAMES_SESSION_KEY] = (names + [name])[-MAX_PASSED_ARTISTS:]
     return _deck_partial(request)

@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116b">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117a">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
   <script>
     document.addEventListener('htmx:configRequest', (event) => {
@@ -20,7 +20,7 @@
     });
   </script>
 </head>
-<body>
+{% load notif_tags %}{% has_unread_messages as unread_msgs %}<body>
   <aside class="sidebar">
     <div class="brand">
       <img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="30" height="30" style="width:30px;height:30px;border-radius:7px;vertical-align:middle;flex-shrink:0;">
@@ -32,7 +32,7 @@
         <div><i class="fa-solid fa-fire"></i> Discover</div>
       </a>
       
-      <a href="{% url 'messaging:messages' %}" class="nav-item" data-tab="messages">
+      <a href="{% url 'messaging:messages' %}" class="nav-item{% if unread_msgs %} has-new{% endif %}" data-tab="messages">
         <div><i class="fa-regular fa-comment"></i> Messages</div>
       </a>
       <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="nav-item" data-tab="sound">
@@ -51,7 +51,7 @@
     <header class="top-header">
       <nav class="top-nav">
         <a href="{% url 'spotify_match:dashboard' %}" data-tab="discover">Discover</a>
-        <a href="{% url 'messaging:messages' %}" data-tab="messages">Messages</a>
+        <a href="{% url 'messaging:messages' %}" data-tab="messages"{% if unread_msgs %} class="has-new"{% endif %}>Messages</a>
         <a href="{% url 'spotify_match:dashboard' %}?tab=sound" data-tab="sound">My Sound</a>
         <a href="{% url 'spotify_match:dashboard' %}?tab=profile">Profile</a>
       </nav>

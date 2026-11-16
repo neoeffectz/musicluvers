@@ -113,13 +113,17 @@ CELERY_BROKER_URL = REDIS_URL
 # How long the worker waits on Redis for a job before asking again. Redis answers the moment a job
 # arrives, so a longer wait doesn't slow anything down; it only means fewer requests to Upstash (whose
 # free plan counts every request). Override with CELERY_POLLING_INTERVAL.
-_poll = env.int("CELERY_POLLING_INTERVAL", default=10)
+_poll = env.int("CELERY_POLLING_INTERVAL", default=30)
 CELERY_BROKER_TRANSPORT_OPTIONS = {"polling_interval": _poll} if _poll else {}
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+# Safety net for jobs that failed to queue (rare: Redis down for a moment). Normal jobs run straight away.
+# Not every minute: the site is kept awake all day (uptime monitor), and a check every minute would keep
+# the Neon database from ever sleeping (free plan: ~400 awake hours a month) and use up Upstash requests.
 CELERY_BEAT_SCHEDULE = {
-    "sweep-outbox": {"task": "apps.events.tasks.sweep_outbox_task", "schedule": 60.0},
+    "sweep-outbox": {"task": "apps.events.tasks.sweep_outbox_task",
+                     "schedule": float(env.int("OUTBOX_SWEEP_SECONDS", default=1800))},
 }
 
 LOGGING = {

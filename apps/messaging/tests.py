@@ -211,3 +211,30 @@ class InstantDeliveryTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             services.send_message(self.conversation, self.a, "still saved")
         self.assertTrue(Message.objects.filter(body="still saved").exists())
+
+
+class InboxUpdatesInstantlyTests(TestCase):
+    def setUp(self):
+        self.a, self.b = make_user("ua"), make_user("ub")
+        x, y = sorted([self.a, self.b], key=lambda u: str(u.id))
+        Match.objects.create(user_a=x, user_b=y)
+        self.conversation = Conversation.objects.create(user_a=x, user_b=y)
+
+    @mock.patch("apps.events.realtime.get_channel_layer")
+    @mock.patch("channels.layers.get_channel_layer")
+    def test_recipient_is_told_right_away(self, chat_layer, user_layer):
+        chat_layer.return_value.group_send = mock.AsyncMock()
+        user_layer.return_value.group_send = mock.AsyncMock()
+        with self.captureOnCommitCallbacks(execute=True):
+            services.send_message(self.conversation, self.a, "hi")
+        group, event = user_layer.return_value.group_send.call_args.args
+        self.assertEqual(group, f"user_{self.b.id}")
+        self.assertEqual(event["event"], {"kind": "new_message", "conversation_id": str(self.conversation.id)})
+
+    def test_messages_tab_shows_a_dot_for_unread(self):
+        Message.objects.create(conversation=self.conversation, sender=self.a, body="unread one")
+        self.client.force_login(self.b)
+        page = self.client.get("/matches/").content.decode()
+        self.assertIn('has-new" data-tab="messages"', page)
+        self.client.force_login(self.a)  # the sender has nothing unread
+        self.assertNotIn('has-new" data-tab="messages"', self.client.get("/matches/").content.decode())

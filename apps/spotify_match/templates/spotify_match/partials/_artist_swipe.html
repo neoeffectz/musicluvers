@@ -10,7 +10,7 @@
     </div>
     <div class="action-buttons" id="artist-deck-buttons" style="margin:0; gap:10px;">
       <button class="btn-action btn-dislike" title="Not for me" style="width:44px; height:44px;"
-        hx-post="{% url 'spotify_match:artist_swipe' %}" hx-vals='{"artist_id": "{{ artist.external_id|escapejs }}", "liked": "false"}'
+        hx-post="{% url 'spotify_match:artist_swipe' %}" hx-vals='{"artist_id": "{{ artist.external_id|escapejs }}", "artist_name": "{{ artist.name|escapejs }}", "liked": "false"}'
         hx-target="#artist-deck" hx-disabled-elt="#artist-deck-buttons button">
         <i class="fa-solid fa-xmark"></i>
       </button>
