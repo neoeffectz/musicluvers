@@ -5,7 +5,9 @@ from .models import Report
 
 def app_flags(request):
     """Small values every template can use."""
+    from apps.lounge import schedule as lounge_schedule
     return {
+        "lounge_open": lounge_schedule.is_open(),
         "report_reasons": Report.REASON_CHOICES,
         "email_enabled": settings.EMAIL_ENABLED,  # False until Resend + musicluvers.site are verified
         "push_enabled": settings.PUSH_ENABLED,

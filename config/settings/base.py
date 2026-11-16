@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "apps.spotify_match",
     "apps.messaging",
     "apps.events",
+    "apps.lounge",
     "channels",
 ]
 
@@ -121,10 +122,19 @@ CELERY_ACCEPT_CONTENT = ["json"]
 # Safety net for jobs that failed to queue (rare: Redis down for a moment). Normal jobs run straight away.
 # Not every minute: the site is kept awake all day (uptime monitor), and a check every minute would keep
 # the Neon database from ever sleeping (free plan: ~400 awake hours a month) and use up Upstash requests.
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {
     "sweep-outbox": {"task": "apps.events.tasks.sweep_outbox_task",
                      "schedule": float(env.int("OUTBOX_SWEEP_SECONDS", default=1800))},
+    # Friday 5pm Lagos: "The Lounge is open" phone notification (once a week, costs nothing otherwise)
+    "lounge-open": {"task": "apps.lounge.tasks.announce_lounge_open",
+                    "schedule": crontab(minute=0, hour=17, day_of_week="fri")},
 }
+
+# The Friday Lounge opens Fridays 5-7pm. LOUNGE_ALWAYS_OPEN=True opens it any day (for trying it out).
+LOUNGE_ALWAYS_OPEN = env.bool("LOUNGE_ALWAYS_OPEN", default=False)
 
 LOGGING = {
     'version': 1,

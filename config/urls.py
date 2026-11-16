@@ -20,4 +20,5 @@ urlpatterns = [
     path("", include("apps.users.urls")),
     path("", include("apps.spotify_match.urls")),
     path("messages/", include("apps.messaging.urls")),
+    path("lounge/", include("apps.lounge.urls")),
 ]

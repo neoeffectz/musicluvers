@@ -1,0 +1,18 @@
+{% if my_request %}
+  <div class="lounge-song lounge-card">
+    {% if my_request.image_url %}<img src="{{ my_request.image_url }}" alt="">{% else %}<span class="lounge-song-art"><i class="fa-solid fa-music"></i></span>{% endif %}
+    <div class="lounge-song-text"><strong>{{ my_request.track_name }}</strong><span>{{ my_request.artist_name }}</span></div>
+    <button type="button" class="song-pick" onclick="document.getElementById('lounge-change').hidden = false; this.hidden = true;">Change</button>
+  </div>
+  <p class="lounge-muted lounge-note">If it's one of the 10 drawn, everyone sees it's your pick.</p>
+  <div id="lounge-change" hidden>{% include "lounge/partials/_search_box.html" %}</div>
+{% else %}
+  {% if my_pick %}
+    <div class="lounge-song lounge-card">
+      {% if my_pick.image_url %}<img src="{{ my_pick.image_url }}" alt="">{% else %}<span class="lounge-song-art"><i class="fa-solid fa-music"></i></span>{% endif %}
+      <div class="lounge-song-text"><strong>{{ my_pick.track_name }}</strong><span>Made the playlist. Everyone can see it's yours.</span></div>
+    </div>
+    <p class="lounge-muted lounge-note">Request another for the next round:</p>
+  {% endif %}
+  {% include "lounge/partials/_search_box.html" %}
+{% endif %}

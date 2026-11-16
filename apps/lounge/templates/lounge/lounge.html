@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>The Lounge - Music Luvers</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  {% include "users/pwa/_head.html" %}
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261114g">
+  <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117b">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <script>
+    document.addEventListener('htmx:configRequest', (event) => {
+      const m = document.cookie.match(/(^|;)\s*csrftoken\s*=\s*([^;]+)/);
+      event.detail.headers['X-CSRFToken'] = m ? m.pop() : '';
+    });
+  </script>
+</head>
+{% load notif_tags %}{% has_unread_messages as unread_msgs %}<body>
+  <aside class="sidebar">
+    <div class="brand"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="30" height="30" style="width:30px;height:30px;border-radius:7px;vertical-align:middle;flex-shrink:0;"><span>Music Luvers</span></div>
+    <nav class="nav-menu">
+      <a href="{% url 'spotify_match:dashboard' %}" class="nav-item" data-tab="discover"><div><i class="fa-solid fa-fire"></i> Discover</div></a>
+      <a href="{% url 'lounge:lounge' %}" class="nav-item active"><div><i class="fa-solid fa-headphones"></i> Lounge</div></a>
+      <a href="{% url 'messaging:messages' %}" class="nav-item{% if unread_msgs %} has-new{% endif %}" data-tab="messages"><div><i class="fa-regular fa-comment"></i> Messages</div></a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=sound" class="nav-item"><div><i class="fa-solid fa-music"></i> My Sound</div></a>
+      <a href="{% url 'spotify_match:dashboard' %}?tab=profile" class="nav-item"><div><i class="fa-solid fa-user"></i> Profile</div></a>
+    </nav>
+  </aside>
+
+  <main class="main-wrapper">
+    <header class="top-header">
+      <nav class="top-nav">
+        <a href="{% url 'spotify_match:dashboard' %}" data-tab="discover">Discover</a>
+        <a href="{% url 'lounge:lounge' %}" class="active">Lounge</a>
+        <a href="{% url 'messaging:messages' %}" data-tab="messages"{% if unread_msgs %} class="has-new"{% endif %}>Messages</a>
+        <a href="{% url 'spotify_match:dashboard' %}?tab=sound">My Sound</a>
+      </nav>
+      <div class="header-user">{% include "spotify_match/partials/_notification_bell.html" %}</div>
+    </header>
+
+    <div class="content-container">
+      <section class="center-section lounge-scroll" id="lounge">
+        <div class="lounge">
+          <div class="lounge-head">
+            <div>
+              <h1>The Lounge</h1>
+              <p class="lounge-sub">Fridays, 5pm to 7pm. Request a song, see who picked what.</p>
+            </div>
+            {% if is_open %}<span class="lounge-people"><span class="lounge-live-dot"></span><strong id="lounge-people">{{ people }}</strong> here now</span>{% endif %}
+          </div>
+
+          {% if is_open %}
+            <div id="lounge-stage">{% include "lounge/partials/_stage.html" %}</div>
+            <div class="lounge-block">
+              <span class="content-label">Your request this round</span>
+              <div id="my-request">{% include "lounge/partials/_my_request.html" %}</div>
+            </div>
+          {% else %}
+            <div class="lounge-closed">
+              <i class="fa-solid fa-headphones"></i>
+              <h2>The Lounge is closed</h2>
+              <p>It opens every Friday at 5pm. Come request a song and meet the people who picked the others.</p>
+              <p class="lounge-countdown" data-opens="{{ next_opening|date:'c' }}">Opens {{ next_opening|date:"l, j M" }} at 5pm</p>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="lounge-sheet" id="lounge-sheet" hidden>
+    <div class="lounge-sheet-backdrop" data-close></div>
+    <div class="lounge-sheet-panel" role="dialog" aria-modal="true" aria-label="Profile">
+      <button type="button" class="lounge-sheet-close" data-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      <div id="lounge-person"></div>
+    </div>
+  </div>
+
+  {% include "spotify_match/partials/_mobile_shell.html" with active="lounge" %}
+  {% include "spotify_match/partials/_notification_center.html" %}
+  <script>
+  (() => {
+    const sheet = document.getElementById('lounge-sheet');
+    // Tapping a requester opens their card in the sheet.
+    document.addEventListener('click', (e) => {
+      const who = e.target.closest('[data-person]');
+      if (who) {
+        e.preventDefault();
+        document.getElementById('lounge-person').innerHTML = '<p class="lounge-muted">Loading…</p>';
+        sheet.hidden = false;
+        htmx.ajax('GET', `/lounge/person/${who.dataset.person}/`, '#lounge-person');
+      }
+      if (e.target.closest('[data-close]')) sheet.hidden = true;
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') sheet.hidden = true; });
+
+    {% if is_open %}
+    // Refresh the stage when the song changes or the draw is due (the server tells us when).
+    let timer;
+    const schedule = () => {
+      clearTimeout(timer);
+      const el = document.querySelector('#lounge-stage [data-refresh-in]');
+      const secs = el ? parseInt(el.dataset.refreshIn, 10) : 30;
+      timer = setTimeout(refreshStage, Math.max(3, secs) * 1000);
+    };
+    const refreshStage = () => htmx.ajax('GET', "{% url 'lounge:stage' %}", { target: '#lounge-stage', swap: 'innerHTML' });
+    document.body.addEventListener('htmx:afterSwap', (e) => { if (e.detail.target.id === 'lounge-stage') schedule(); });
+    schedule();
+    // Countdown to the draw, updated every second without asking the server.
+    setInterval(() => {
+      document.querySelectorAll('[data-countdown]').forEach(el => {
+        const left = Math.max(0, parseInt(el.dataset.countdown, 10) - 1);
+        el.dataset.countdown = left;
+        el.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'any moment';
+      });
+    }, 1000);
+    // Live: people here, requests so far, and "the playlist changed".
+    let delay = 1000, ping;
+    const connect = () => {
+      const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/lounge/`);
+      ws.onopen = () => { delay = 1000; ping = setInterval(() => ws.readyState === 1 && ws.send('ping'), 45000); };
+      ws.onmessage = (m) => {
+        const ev = JSON.parse(m.data);
+        if (ev.kind === 'people') document.getElementById('lounge-people').textContent = ev.n;
+        if (ev.kind === 'requests') document.querySelectorAll('[data-request-count]').forEach(el => el.textContent = ev.n);
+        if (ev.kind === 'stage') refreshStage();
+      };
+      ws.onclose = () => { clearInterval(ping); setTimeout(connect, delay); delay = Math.min(delay * 2, 15000); };
+    };
+    connect();
+    {% endif %}
+  })();
+  </script>
+</body>
+</html>

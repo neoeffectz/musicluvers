@@ -1,0 +1,44 @@
+{% comment %} Now playing / up next / played + this round's requests. Refreshes itself after refresh_in seconds. {% endcomment %}
+<div data-refresh-in="{{ refresh_in }}">
+  {% if now_playing %}
+    <div class="lounge-block">
+      <span class="content-label">Now playing</span>
+      <div class="lounge-card lounge-now">
+        <iframe class="lounge-player" title="Play {{ now_playing.track_name }}" loading="lazy"
+                src="https://open.spotify.com/embed/track/{{ now_playing.track_id }}?utm_source=generator&amp;theme=0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        {% include "lounge/partials/_requester.html" with req=now_playing label="Requested by" %}
+      </div>
+    </div>
+  {% else %}
+    <div class="lounge-block">
+      <span class="content-label">Now playing</span>
+      <div class="lounge-card lounge-waiting">
+        <i class="fa-solid fa-compact-disc"></i>
+        <p>{% if request_count %}The playlist starts when this round's requests are drawn.{% else %}Nothing yet. Be the first to request a song.{% endif %}</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="lounge-round lounge-card">
+    <div><strong data-request-count>{{ request_count }}</strong> request{{ request_count|pluralize }} this round</div>
+    <div class="lounge-muted">
+      {% if draw_in %}10 random picks in <span data-countdown="{{ draw_in }}">{{ draw_in_text }}</span>
+      {% elif now_playing %}Drawn when this playlist ends
+      {% else %}Drawn as soon as someone requests{% endif %}
+    </div>
+  </div>
+
+  {% if up_next %}
+    <div class="lounge-block">
+      <span class="content-label">Up next</span>
+      {% for song in up_next %}{% include "lounge/partials/_song_row.html" %}{% endfor %}
+    </div>
+  {% endif %}
+  {% if played %}
+    <div class="lounge-block">
+      <span class="content-label">Played</span>
+      {% for song in played reversed %}{% include "lounge/partials/_song_row.html" %}{% endfor %}
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,9 @@
+{% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+{% for t in results %}
+  <div class="lounge-song">
+    {% if t.image_url %}<img src="{{ t.image_url }}" alt="">{% else %}<span class="lounge-song-art"><i class="fa-solid fa-music"></i></span>{% endif %}
+    <div class="lounge-song-text"><strong>{{ t.track_name }}</strong><span>{{ t.artist_name }}</span></div>
+    <button type="button" class="song-pick" hx-post="{% url 'lounge:request' %}" hx-vals='{"track_id": "{{ t.track_id|escapejs }}"}'
+            hx-target="#my-request" hx-disabled-elt="this">Request</button>
+  </div>
+{% endfor %}

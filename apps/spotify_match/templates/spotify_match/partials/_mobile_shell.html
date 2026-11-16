@@ -6,7 +6,12 @@ Phone-only top bar (logo + bell) and bottom tab bar, shared by every signed-in p
 {% endcomment %}
 <header class="m-topbar">
   <a href="{% url 'spotify_match:dashboard' %}" class="m-brand"><img src="{% static 'icons/icon-192.png' %}" alt="" class="brand-logo" width="26" height="26" style="width:26px;height:26px;border-radius:6px;vertical-align:middle;flex-shrink:0;"> Music Luvers</a>
-  {% include "spotify_match/partials/_notification_bell_mobile.html" %}
+  <div class="m-topbar-right">
+    <a href="{% url 'lounge:lounge' %}" class="m-lounge{% if lounge_open %} is-live{% endif %}{% if active == 'lounge' %} is-here{% endif %}" aria-label="The Lounge{% if lounge_open %}, live now{% endif %}">
+      <i class="fa-solid fa-headphones"></i><span>{% if lounge_open %}Live{% else %}Lounge{% endif %}</span>
+    </a>
+    {% include "spotify_match/partials/_notification_bell_mobile.html" %}
+  </div>
 </header>
 
 <nav class="m-tabbar" aria-label="Main">

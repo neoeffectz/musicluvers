@@ -1,0 +1,5 @@
+{% if matched %}
+  <a class="btn-pill btn-pill-primary" href="{% url 'messaging:open' other_user_id=other.id %}"><i class="fa-solid fa-heart"></i> It's a match! Say hi</a>
+{% else %}
+  <p class="lounge-muted">Liked. If {{ other.first_name|default:"they" }} likes you back, it's a match.</p>
+{% endif %}

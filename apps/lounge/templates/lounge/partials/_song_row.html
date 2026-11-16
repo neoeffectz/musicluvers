@@ -1,0 +1,12 @@
+<div class="lounge-song">
+  {% if song.image_url %}<img src="{{ song.image_url }}" alt="">{% else %}<span class="lounge-song-art"><i class="fa-solid fa-music"></i></span>{% endif %}
+  <div class="lounge-song-text"><strong>{{ song.track_name }}</strong><span>{{ song.artist_name }}</span></div>
+  {% if song.user_id == request.user.id %}
+    <span class="lounge-you">You</span>
+  {% else %}
+    <a href="#" class="lounge-by" data-person="{{ song.user_id }}">
+      <img src="{{ song.user.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }}" alt="">
+      {{ song.user.first_name|default:"Someone" }}
+    </a>
+  {% endif %}
+</div>

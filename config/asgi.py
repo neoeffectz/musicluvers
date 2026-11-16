@@ -9,10 +9,11 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from apps.messaging.routing import websocket_urlpatterns as messaging_ws
 from apps.events.routing import websocket_urlpatterns as events_ws
+from apps.lounge.routing import websocket_urlpatterns as lounge_ws
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
-        URLRouter(messaging_ws + events_ws)
+        URLRouter(messaging_ws + events_ws + lounge_ws)
     ),
 })

@@ -1,0 +1,33 @@
+{% with u=card.user %}
+<div class="lounge-person">
+  <img class="lounge-person-photo" src="{{ u.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=600&q=80' }}" alt="{{ u.first_name }}">
+  <div class="lounge-person-head">
+    <div>
+      <h2>{{ u.first_name|default:"Someone" }}{% if u.age %}, {{ u.age }}{% endif %}</h2>
+      {% if u.location or card.distance %}<p class="lounge-muted"><i class="fa-solid fa-location-dot"></i> {{ u.location }}{% if u.location and card.distance %} · {% endif %}{{ card.distance }}</p>{% endif %}
+    </div>
+    {% if card.score %}<span class="match-pill">{{ card.score }}% Match</span>{% endif %}
+  </div>
+
+  {% if card.shared_artists %}
+    <div><span class="content-label">You both listen to</span>
+      <div class="tags-wrapper" style="margin-top:8px;">{% for a in card.shared_artists %}<span class="tag-chip">{{ a }}</span>{% endfor %}</div></div>
+  {% endif %}
+  {% include "spotify_match/partials/_card_prompts.html" with prompts=card.prompts %}
+  {% if card.top_artists %}
+    <div><span class="content-label">{{ u.first_name|default:"Their" }}'s top artists</span>
+      <div class="tags-wrapper" style="margin-top:8px;">{% for a in card.top_artists %}<span class="tag-chip">{{ a.name }}</span>{% endfor %}</div></div>
+  {% endif %}
+
+  <div id="lounge-like-area" class="lounge-person-actions">
+    {% if card.matched %}
+      <a class="btn-pill btn-pill-primary" href="{% url 'messaging:open' other_user_id=u.id %}"><i class="fa-regular fa-comment"></i> You matched. Say hi</a>
+    {% elif card.liked %}
+      <p class="lounge-muted">You liked {{ u.first_name|default:"them" }}. If they like you back, it's a match.</p>
+    {% elif card.can_like %}
+      <button type="button" class="btn-pill btn-pill-primary" hx-post="{% url 'lounge:like' user_id=u.id %}" hx-target="#lounge-like-area" hx-disabled-elt="this">
+        <i class="fa-solid fa-heart"></i> Like</button>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}
