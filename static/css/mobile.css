@@ -349,11 +349,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .lounge-by { display: inline-flex; align-items: center; gap: 6px; color: #c7c7cc; font-size: 12px; text-decoration: none; flex-shrink: 0; }
 .lounge-by img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
 .lounge-you { color: #8e8e93; font-size: 12px; flex-shrink: 0; }
-.lounge-closed { text-align: center; padding: 36px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.lounge-closed i { font-size: 34px; color: #f3582c; margin-bottom: 4px; }
-.lounge-closed h2 { color: #fff; font-size: 20px; margin: 0; }
-.lounge-closed p { color: #a1a1a8; font-size: 14px; margin: 0; max-width: 340px; line-height: 1.5; }
-.lounge-closed .lounge-countdown { color: #fff; font-weight: 600; margin-top: 8px; }
+.lounge-closed { text-align: center; padding: 28px 16px 12px; display: flex; flex-direction: column; align-items: center; }
+.lounge-art { width: 200px; height: 200px; margin-bottom: 26px; }
+.lounge-closed h2 { color: #fff; font-size: 19px; font-weight: 600; margin: 0 0 10px; }
+.lounge-closed p { color: #8e8e93; font-size: 14px; margin: 0; max-width: 300px; line-height: 1.55; }
+.lounge-closed .lounge-countdown { color: #f3582c; font-size: 13px; font-weight: 600; margin-top: 18px; }
 
 .lounge-sheet { position: fixed; inset: 0; z-index: 4000; }
 .lounge-sheet[hidden] { display: none; }

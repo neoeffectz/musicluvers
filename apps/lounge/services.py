@@ -1,6 +1,6 @@
 """Friday Lounge: rounds of song requests, a random draw of 10, and a shared "Now playing".
 
-How a session runs (Fridays 5pm-7pm):
+How a session runs (Fridays 5pm-6pm):
   * Round 1 opens for requests at 5pm. One request per person per round (they can change it).
   * After REQUEST_MINUTES, the next time anyone looks at the Lounge, up to PICKS requests are drawn at
     random and become the playlist; it starts playing straight away. Round 2 opens for requests at once.

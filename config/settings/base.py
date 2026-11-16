@@ -133,7 +133,7 @@ CELERY_BEAT_SCHEDULE = {
                     "schedule": crontab(minute=0, hour=17, day_of_week="fri")},
 }
 
-# The Friday Lounge opens Fridays 5-7pm. LOUNGE_ALWAYS_OPEN=True opens it any day (for trying it out).
+# The Friday Lounge opens Fridays 5-6pm. LOUNGE_ALWAYS_OPEN=True opens it any day (for trying it out).
 LOUNGE_ALWAYS_OPEN = env.bool("LOUNGE_ALWAYS_OPEN", default=False)
 
 LOGGING = {

@@ -1,4 +1,4 @@
-"""When the Lounge is open: Fridays 5pm-7pm, Lagos time (settings.TIME_ZONE).
+"""When the Lounge is open: Fridays 5pm-6pm, Lagos time (settings.TIME_ZONE).
 
 LOUNGE_ALWAYS_OPEN=True (env) opens it any day, for trying it out with friends.
 """
@@ -9,7 +9,7 @@ from django.utils import timezone
 
 WEEKDAY = 4            # Friday (Monday = 0)
 OPENS = time(17, 0)
-CLOSES = time(19, 0)
+CLOSES = time(18, 0)   # one hour: a denser crowd while the app is young
 
 
 def now():

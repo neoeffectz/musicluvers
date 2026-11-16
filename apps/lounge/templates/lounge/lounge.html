@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117b">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117c">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
@@ -49,7 +49,7 @@
           <div class="lounge-head">
             <div>
               <h1>The Lounge</h1>
-              <p class="lounge-sub">Fridays, 5pm to 7pm. Request a song, see who picked what.</p>
+              {% if is_open %}<p class="lounge-sub">Until 6pm. Request a song, see who picked what.</p>{% endif %}
             </div>
             {% if is_open %}<span class="lounge-people"><span class="lounge-live-dot"></span><strong id="lounge-people">{{ people }}</strong> here now</span>{% endif %}
           </div>
@@ -62,10 +62,10 @@
             </div>
           {% else %}
             <div class="lounge-closed">
-              <i class="fa-solid fa-headphones"></i>
-              <h2>The Lounge is closed</h2>
-              <p>It opens every Friday at 5pm. Come request a song and meet the people who picked the others.</p>
-              <p class="lounge-countdown" data-opens="{{ next_opening|date:'c' }}">Opens {{ next_opening|date:"l, j M" }} at 5pm</p>
+              {% include "lounge/partials/_illustration.html" %}
+              <h2>Friday Lounge, 5pm to 6pm</h2>
+              <p>An hour of music with everyone. Request a song, listen to the playlist and meet the people who picked the others.</p>
+              <p class="lounge-countdown">Opens {{ next_opening|date:"l, j M" }} at 5pm</p>
             </div>
           {% endif %}
         </div>

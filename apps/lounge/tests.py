@@ -27,11 +27,11 @@ def fake_track(url, params=None):
 
 
 class ScheduleTests(TestCase):
-    def test_open_fridays_5_to_7_lagos_time(self):
+    def test_open_fridays_5_to_6_lagos_time(self):
         self.assertTrue(schedule.is_open(FRIDAY_5PM))
-        self.assertTrue(schedule.is_open(FRIDAY_5PM + timedelta(hours=1, minutes=59)))
+        self.assertTrue(schedule.is_open(FRIDAY_5PM + timedelta(minutes=59)))
         self.assertFalse(schedule.is_open(FRIDAY_5PM - timedelta(minutes=1)))
-        self.assertFalse(schedule.is_open(FRIDAY_5PM + timedelta(hours=2)))
+        self.assertFalse(schedule.is_open(FRIDAY_5PM + timedelta(hours=1)))
         self.assertFalse(schedule.is_open(FRIDAY_5PM + timedelta(days=1)))   # Saturday 5pm
 
     def test_next_opening(self):
@@ -175,7 +175,7 @@ class ClosedLoungeTests(TestCase):
         self.client.force_login(person("ada"))
         with mock.patch("apps.lounge.schedule.now", return_value=datetime(2026, 11, 18, 9, 0)):
             page = self.client.get("/lounge/")
-        self.assertContains(page, "The Lounge is closed")
+        self.assertContains(page, "Friday Lounge, 5pm to 6pm")
         self.assertContains(page, "Friday")
         self.assertNotContains(page, "Search a song to request")
 

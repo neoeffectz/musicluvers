@@ -7,5 +7,5 @@ def announce_lounge_open():
     from apps.users import push
     from apps.users.models import PushSubscription
     for user_id in PushSubscription.objects.values_list("user_id", flat=True).distinct():
-        push.notify(user_id, "The Lounge is open 🎧", "Request a song and see who picked the others. Till 7pm.",
+        push.notify(user_id, "The Lounge is open 🎧", "Request a song and see who picked the others. Till 6pm.",
                     url="/lounge/", tag="lounge-open")
