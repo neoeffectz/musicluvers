@@ -8,6 +8,17 @@ from . import services
 from .models import Conversation, Message
 
 
+class AppLoadsTests(TestCase):
+    def test_full_asgi_app_with_websocket_routes_imports(self):
+        """The live server loads chat/websocket code that normal page tests never import."""
+        import importlib
+        import apps.events.consumers
+        import apps.messaging.consumers
+        import config.asgi
+        for module in (apps.messaging.consumers, apps.events.consumers, config.asgi):
+            importlib.reload(module)
+
+
 def make_user(username):
     from datetime import date
     return CustomUser.objects.create_user(username=username, password="pass1234", latitude=6.52, longitude=3.38,
@@ -175,3 +186,28 @@ class SendRulesTests(TestCase):
                                json.dumps({"body": "via api"}), content_type="application/json")
         self.assertEqual(api.status_code, 403)
         self.assertFalse(Message.objects.filter(body__in=["still here?", "via api"]).exists())
+
+
+class InstantDeliveryTests(TestCase):
+    """A sent message reaches the open chat straight from the request, not after the background worker."""
+    def setUp(self):
+        self.a, self.b = make_user("ia"), make_user("ib")
+        x, y = sorted([self.a, self.b], key=lambda u: str(u.id))
+        Match.objects.create(user_a=x, user_b=y)
+        self.conversation = Conversation.objects.create(user_a=x, user_b=y)
+
+    @mock.patch("channels.layers.get_channel_layer")
+    def test_sent_message_is_pushed_live_right_away(self, layer):
+        layer.return_value.group_send = mock.AsyncMock()
+        with self.captureOnCommitCallbacks(execute=True):
+            message = services.send_message(self.conversation, self.a, "hey")
+        group, event = layer.return_value.group_send.call_args.args
+        self.assertEqual(group, f"conversation_{self.conversation.id}")
+        self.assertEqual(event["message"]["id"], str(message.id))
+        self.assertEqual(event["message"]["body"], "hey")
+
+    @mock.patch("channels.layers.get_channel_layer", side_effect=RuntimeError("redis down"))
+    def test_live_push_failing_doesnt_lose_the_message(self, _):
+        with self.captureOnCommitCallbacks(execute=True):
+            services.send_message(self.conversation, self.a, "still saved")
+        self.assertTrue(Message.objects.filter(body="still saved").exists())

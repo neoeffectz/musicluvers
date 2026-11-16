@@ -52,7 +52,12 @@ def update_profile(user, data):
         elif f == "location":
             value = " ".join(str(value).split())[:255]
         setattr(user, f, value)
+    before = CustomUser.objects.filter(id=user.id).values("gender", "preference").first() or {}
     user.save(update_fields=fields)
+    if (before.get("gender"), before.get("preference")) != (user.gender, user.preference) and user.top_artists.exists():
+        # Who can see whom changed: score the people they can now meet.
+        from apps.spotify_match.services import publish_taste_change
+        publish_taste_change(user)
     return errors
 
 

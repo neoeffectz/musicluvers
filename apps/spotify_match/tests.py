@@ -861,12 +861,12 @@ class AnswersMatchTests(TestCase):
         for i, name in enumerate(["Rema", "Burna Boy", "Davido"]):  # Ben already has Asake
             TopArtist.objects.create(user=self.b, external_id=f"extra-{i}", name=name, rank=10 + i)
         for i, artist in enumerate(["Asake", "Rema", "Burna Boy", "Davido"]):
-            answer(self.a, ["dance", "underrated", "anthem", "throwback"][i], f"Song {i}", artist)
+            answer(self.a, ["dance", "underrated", "anthem", "this_year"][i], f"Song {i}", artist)
         s = self.score()
         self.assertEqual(s.display_score, 40 + 9)  # 4 x 3 points, capped at 9
 
     def test_answers_bonus_is_capped(self):
-        for prompt in ["dance", "underrated", "anthem", "throwback"]:
+        for prompt in ["dance", "underrated", "anthem", "this_year"]:
             answer(self.a, prompt, f"Track {prompt}", "X")
             answer(self.b, prompt, f"Track {prompt}", "X")
         s = self.score()
@@ -937,7 +937,7 @@ class QuestionOrderTests(TestCase):
         page = self.client.get("/dashboard/tab/sound/").content.decode()
         order = ["A song that makes me dance", "An underrated song people should know", "The anthem of my life",
                  "A rising artist the world should know", "A 10/10 album", "A song that must be played at my wedding",
-                 "An artist I&#x27;d travel to see live", "A throwback that still slaps", "My road trip song"]
+                 "An artist I&#x27;d travel to see live", "My road trip song", "My favorite song this year"]
         positions = [page.index(label) for label in order]
         self.assertEqual(positions, sorted(positions))
 
@@ -966,7 +966,7 @@ class BonusQuestionsTests(TestCase):
         third = self.pick("wedding", "tr1")
         self.assertIn('hx-swap-oob="true"', third)
         self.assertIn("3 more questions unlocked", third)
-        for label in ["An artist I&#x27;d travel to see live", "A throwback that still slaps", "My road trip song"]:
+        for label in ["An artist I&#x27;d travel to see live", "My road trip song", "My favorite song this year"]:
             self.assertIn(label, third)
         page = self.client.get("/dashboard/tab/sound/").content.decode()
         self.assertIn("My road trip song", page)
@@ -1005,8 +1005,8 @@ class BonusQuestionMatchingTests(TestCase):
         self.assertIn("You'd both travel to see Burna Boy live", s.shared_answers)
         self.assertEqual(s.display_score, 50)
 
-    def test_same_throwback_song_counts(self):
-        answer(self.a, "throwback", "African Queen", "2Baba")
+    def test_same_song_this_year_counts(self):
+        answer(self.a, "this_year", "African Queen", "2Baba")
         answer(self.b, "road_trip", "African Queen", "2Baba")
         self.assertIn("You both picked “African Queen”", self.score().shared_answers)
 
@@ -1047,3 +1047,52 @@ class AnswerCardsTests(TestCase):
         page = self.client.get(f"/user/{other.id}/").content.decode()
         self.assertIn("Free Mind", page)
         self.assertIn('class="answer-play" href="https://open.spotify.com/track/0SZsfRXh0Wyy1ZnsJ6QaF4"', page)
+
+
+class FastScoringTests(EagerEventsMixin, TestCase):
+    """Scores are built in bulk (a few queries, not ~12 per person) and only for people who could meet."""
+    def setUp(self):
+        super().setUp()
+        self.ada = make_user("ada", gender="woman", preference="man")
+        make_artists(self.ada, ["Tems", "Wizkid", "Asake"])
+
+    def test_queries_dont_grow_with_the_number_of_users(self):
+        for i in range(25):
+            u = make_user(f"m{i}", gender="man", preference="woman")
+            make_artists(u, ["Wizkid", f"Other {i}"])
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as queries:
+            services.recompute_scores_for_user(self.ada)
+        self.assertLessEqual(len(queries), 8)
+        self.assertEqual(MatchScore.objects.count(), 25)
+
+    def test_people_who_can_never_meet_get_no_score(self):
+        other_woman = make_user("eve", gender="woman", preference="man")  # both want men
+        make_artists(other_woman, ["Tems"])
+        services.recompute_scores_for_user(self.ada)
+        self.assertFalse(MatchScore.objects.exists())
+
+    def test_changing_who_you_want_to_see_rescores(self):
+        from apps.users import services as user_services
+        eve = make_user("eve", gender="woman", preference="man")
+        make_artists(eve, ["Tems"])
+        services.recompute_scores_for_user(self.ada)
+        self.assertFalse(MatchScore.objects.exists())
+        self.ada.refresh_from_db()
+        with self.run_events():
+            user_services.update_profile(eve, {"preference": "everyone"})
+            user_services.update_profile(self.ada, {"preference": "everyone"})
+        self.assertEqual(MatchScore.objects.get().shared_artists, ["Tems"])
+
+    def test_bulk_results_match_one_pair_at_a_time(self):
+        ben = make_user("ben", gender="man", preference="woman")
+        make_artists(ben, ["Wizkid", "Asake"])
+        answer(self.ada, "anthem", "Essence", "Wizkid")
+        answer(ben, "wedding", "Essence", "Wizkid")
+        services.recompute_scores_for_user(self.ada)
+        bulk = MatchScore.objects.values("display_score", "shared_artists", "shared_tracks", "shared_answers").get()
+        MatchScore.objects.all().delete()
+        services._upsert_score(self.ada, ben)
+        single = MatchScore.objects.values("display_score", "shared_artists", "shared_tracks", "shared_answers").get()
+        self.assertEqual(bulk, single)

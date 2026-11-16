@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116a">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116b">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
   <script>
     document.addEventListener('htmx:configRequest', (event) => {
@@ -129,17 +129,14 @@
                   </div>{% endif %}
                 </div>
 
-                <div style="display:flex; gap:10px; margin-top:8px;">
-                  <a href="{% url 'messaging:open' other_user_id=card.user.id %}"
-                    class="btn-send"
-                    style="width:auto; border-radius:20px; padding:0 20px; display:flex; align-items:center; gap:8px; text-decoration:none;">
+                <div class="profile-actions">
+                  <a href="{% url 'messaging:open' other_user_id=card.user.id %}" class="btn-pill btn-pill-primary">
                     <i class="fa-regular fa-comment"></i> Message
                   </a>
-
                   <form method="post" action="{% url 'spotify_match:unmatch' user_id=card.user.id %}"
                         onsubmit="return confirm('Unmatch with {{ card.user.first_name|default:card.user.username|escapejs }}? This deletes your conversation and can\'t be undone.');">
                     {% csrf_token %}
-                    <button type="submit" class="btn-unmatch">Unmatch</button>
+                    <button type="submit" class="btn-pill btn-pill-ghost"><i class="fa-solid fa-heart-crack"></i> Unmatch</button>
                   </form>
                 </div>
               </div>

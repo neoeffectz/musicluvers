@@ -72,6 +72,10 @@ TEMPLATES = [{
     ]},
 }]
 
+# Times on screen (chat, "5 minutes ago", ...) are shown in Lagos time. Without this Django used its
+# default, America/Chicago, 7 hours behind. Stored times are exact moments, so nothing needs migrating.
+TIME_ZONE = env("TIME_ZONE", default="Africa/Lagos")
+
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -106,6 +110,11 @@ CHANNEL_LAYERS = {
 }
 
 CELERY_BROKER_URL = REDIS_URL
+# How long the worker waits on Redis for a job before asking again. Redis answers the moment a job
+# arrives, so a longer wait doesn't slow anything down; it only means fewer requests to Upstash (whose
+# free plan counts every request). Override with CELERY_POLLING_INTERVAL.
+_poll = env.int("CELERY_POLLING_INTERVAL", default=10)
+CELERY_BROKER_TRANSPORT_OPTIONS = {"polling_interval": _poll} if _poll else {}
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -197,5 +206,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 # Empty = off: local dev has no key, so testing never counts as visitors. Set in render.yaml.
 POSTHOG_KEY = env("POSTHOG_KEY", default="")
 POSTHOG_HOST = env("POSTHOG_HOST", default="https://us.i.posthog.com")
+# Account ids (comma-separated) that are never tracked: the team testing the app.
+POSTHOG_IGNORE_USER_IDS = set(env.list("POSTHOG_IGNORE_USER_IDS", default=[]))
 
 

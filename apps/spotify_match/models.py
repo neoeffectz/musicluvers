@@ -102,15 +102,15 @@ class ProfilePrompt(models.Model):
         ("wedding", "A song that must be played at my wedding"),
         # Unlocked in My Sound once the three above are answered
         ("live_artist", "An artist I'd travel to see live"),
-        ("throwback", "A throwback that still slaps"),
         ("road_trip", "My road trip song"),
+        ("this_year", "My favorite song this year"),
     ]
     SIGNUP_PROMPTS = ("dance", "underrated", "anthem")
     MORE_PROMPTS = ("rising_artist", "album", "wedding")
-    BONUS_PROMPTS = ("live_artist", "throwback", "road_trip")
+    BONUS_PROMPTS = ("live_artist", "road_trip", "this_year")
     # Order on profile cards: the anthem leads, like a profile song.
     DISPLAY_ORDER = ("anthem", "dance", "underrated", "wedding", "album", "rising_artist",
-                     "live_artist", "throwback", "road_trip")
+                     "live_artist", "road_trip", "this_year")
     # Everything else is answered with a song.
     PROMPT_KINDS = {"rising_artist": "artist", "live_artist": "artist", "album": "album"}
 

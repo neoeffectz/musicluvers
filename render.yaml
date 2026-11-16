@@ -26,6 +26,8 @@ envVarGroups:
         value: phc_r3xLooqy4Yd9WtLCvYnJdK8s3ViSmxjEN8QbqanMG6Sh
       - key: POSTHOG_HOST           # change to https://eu.i.posthog.com if your PostHog is on EU
         value: https://us.i.posthog.com
+      - key: POSTHOG_IGNORE_USER_IDS  # your own account(s), never tracked; comma-separated
+        value: fffe2c62-4000-4c86-95a4-7eb1d407a835
       - key: DJANGO_SECRET_KEY      # generated once by Render, shared by web + worker
         generateValue: true
 

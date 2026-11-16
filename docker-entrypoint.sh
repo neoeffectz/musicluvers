@@ -12,12 +12,13 @@ python manage.py collectstatic --noinput
 
 # Free plan (no separate worker service): run the background jobs (match scores, notifications,
 # emails, city lookups, the 1-minute sweeper) in this same container, next to the website.
-# One process, no chatter between workers, so it stays light on memory and on Upstash requests.
+# One process with 4 threads: a slow job (a phone notification, a city lookup) can't hold up the others,
+# and it stays light on memory. No chatter between workers, to save Upstash requests.
 # If it ever stops, it restarts itself after 5 seconds.
 if [ "${RUN_WORKER_IN_WEB:-}" = "1" ]; then
   (
     while true; do
-      celery -A config worker -B -l info --pool solo --concurrency 1 \
+      celery -A config worker -B -l info --pool threads --concurrency 4 \
         --without-gossip --without-mingle --without-heartbeat \
         --schedule /tmp/celerybeat-schedule || true
       echo "Background worker stopped; restarting in 5 seconds" >&2

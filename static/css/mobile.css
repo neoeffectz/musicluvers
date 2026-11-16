@@ -272,10 +272,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 @media (prefers-reduced-motion: reduce) { .bonus-questions.is-open { animation: none; } }
 
 /* "You two have in common" */
-.in-common { background: rgba(243,88,44,0.08); border: 1px solid rgba(243,88,44,0.3); border-radius: 14px; padding: 12px 14px; }
+.in-common { background: none; border: 0; padding: 0; }
 .in-common ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .in-common li { color: #fff; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
 .in-common li i { color: #f3582c; font-size: 12px; }
+
+/* Profile page: Message + Unmatch as a matching pair */
+.profile-actions { display: flex; gap: 10px; margin-top: 8px; }
+.profile-actions > * { flex: 1; min-width: 0; margin: 0; }
+.btn-pill { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 46px; padding: 0 18px;
+  border-radius: 999px; font-family: inherit; font-size: 15px; font-weight: 600; line-height: 1; text-decoration: none;
+  cursor: pointer; box-sizing: border-box; white-space: nowrap; }
+.btn-pill i { font-size: 15px; }
+.btn-pill-primary { background: linear-gradient(135deg, #e02f26, #f24e30); color: #fff; border: 0; }
+.btn-pill-ghost { background: #1a1a1c; color: #fff; border: 1px solid rgba(255,255,255,0.12); }
+.btn-pill-ghost:hover { background: #252527; }
 
 /* Own bio on My Sound */
 .bio-note { text-transform: none; letter-spacing: 0; color: #636366; font-weight: 500; }

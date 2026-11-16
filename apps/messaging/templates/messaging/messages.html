@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116a">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261116b">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
@@ -167,8 +167,12 @@ function appendMessage(msg) {
     <div class="message-bubble">
       ${escapeHtml(msg.body)}
       <span class="message-time">${msg.created_at}</span>
+      <button class="btn-like-msg" hx-post="/messages/messages/${msg.id}/like/" hx-target="#msg-${msg.id}" hx-swap="outerHTML">
+        <i class="fa-solid fa-heart"></i>
+      </button>
     </div>`;
   container.appendChild(row);
+  htmx.process(row);  // so the heart works on messages that arrived live, like the ones loaded with the page
   container.scrollTop = container.scrollHeight;
 }
 

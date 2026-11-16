@@ -12,18 +12,10 @@ def broadcast_message(payload):
     message = Message.objects.filter(id=payload["message_id"]).first()
     if message is None:
         return
+    # Backup delivery (the request already pushed it live; the chat page drops duplicates).
+    from .services import live_payload
     async_to_sync(get_channel_layer().group_send)(
-        f"conversation_{message.conversation_id}",
-        {
-            "type": "chat_message",
-            "message": {
-                "id": str(message.id),
-                "sender_id": str(message.sender_id),
-                "body": message.body,
-                "created_at": message.created_at.strftime("%-I:%M %p"),
-            },
-        },
-    )
+        f"conversation_{message.conversation_id}", {"type": "chat_message", "message": live_payload(message)})
     conversation = message.conversation
     recipient = conversation.user_b if conversation.user_a_id == message.sender_id else conversation.user_a
     notifications.notify_new_message(message, recipient)

@@ -73,7 +73,32 @@ def send_message(conversation, sender, body):
     with transaction.atomic():
         message = Message.objects.create(conversation=conversation, sender=sender, body=body)
         bus.publish(catalog.MESSAGE_SENT, message_id=str(message.id), conversation_id=str(conversation.id))
+        # Show it in the other person's open chat right away, without waiting for the background worker
+        # (which may be busy). The worker still sends the bell + phone notification, and repeats this
+        # delivery as a backup; the chat page ignores a message it already shows.
+        transaction.on_commit(lambda: deliver_live(message))
     return message
+
+
+def live_payload(message):
+    return {
+        "id": str(message.id),
+        "sender_id": str(message.sender_id),
+        "body": message.body,
+        "created_at": message.created_at.strftime("%-I:%M %p"),
+    }
+
+
+def deliver_live(message):
+    """Push a message to everyone with this chat open. Best effort: the background worker repeats it."""
+    import logging
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+    try:
+        async_to_sync(get_channel_layer().group_send)(
+            f"conversation_{message.conversation_id}", {"type": "chat_message", "message": live_payload(message)})
+    except Exception:
+        logging.getLogger(__name__).exception("Live delivery failed for message %s; the worker will retry", message.id)
 
 
 def mark_read(conversation, reader):

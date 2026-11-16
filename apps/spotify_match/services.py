@@ -150,8 +150,12 @@ def _active_prompts(user):
 
 def _answers(user):
     """The user's question answers grouped by kind, keyed so the same pick matches across people."""
+    return _answers_from(_active_prompts(user))
+
+
+def _answers_from(prompts):
     out = {"song": {}, "artist": {}, "live": {}, "album": {}, "by": {}}
-    for p in _active_prompts(user):
+    for p in prompts:
         main_artist = (p.artist_name or "").split(",")[0].strip()
         if p.prompt == "live_artist":
             out["live"][_fold(p.track_name)] = p.track_name
@@ -171,7 +175,10 @@ def _answers(user):
 
 def _answer_matches(a, b, a_artists, b_artists, shared_artists):
     """(points, reasons) from the two people's question answers."""
-    mine, theirs = _answers(a), _answers(b)
+    return _answer_matches_from(_answers(a), _answers(b), a_artists, b_artists, shared_artists)
+
+
+def _answer_matches_from(mine, theirs, a_artists, b_artists, shared_artists):
     points, reasons = 0, []
     for key in sorted(mine["song"].keys() & theirs["song"].keys()):
         points += SAME_SONG_POINTS
@@ -210,43 +217,97 @@ def _visible_to_each_other(viewer, other):
 
 
 def _upsert_score(a, b):
-    a_artists, b_artists = _artist_set(a), _artist_set(b)
-    shared_artists = _shared(a_artists, b_artists)
-    shared_genres = _shared(_genre_set(a), _genre_set(b))
-    shared_tracks = _shared(_track_set(a), _track_set(b))
-    answer_points, shared_answers = _answer_matches(a, b, a_artists, b_artists, shared_artists)
+    """Score one pair (kept for small jobs and tests; bulk paths use _score_users)."""
+    _save_scores([(a, b)], _tastes([a, b]))
 
+
+def _tastes(users):
+    """Everything scoring needs about these people, loaded in 4 queries in total (not ~6 per pair)."""
+    from collections import defaultdict
+    ids = [u.id for u in users]
+    artists, genres, tracks, prompts = defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list)
+    for uid, name, artist_genres in TopArtist.objects.filter(user_id__in=ids).values_list("user_id", "name", "genres"):
+        artists[uid].append(name)
+        genres[uid].extend(artist_genres or [])
+    for uid, name in TopTrack.objects.filter(user_id__in=ids).values_list("user_id", "name"):
+        tracks[uid].append(name)
+    current = dict(ProfilePrompt.PROMPT_CHOICES)
+    for p in ProfilePrompt.objects.filter(user_id__in=ids, prompt__in=list(current)):
+        prompts[p.user_id].append(p)
+    out = {}
+    for u in users:
+        song_answers = [p.track_name for p in prompts[u.id] if p.prompt not in ProfilePrompt.PROMPT_KINDS]
+        out[u.id] = {
+            "artists": _normalized(artists[u.id]),
+            "genres": _normalized(list(u.favorite_genres or []) + genres[u.id]),
+            "tracks": _normalized(tracks[u.id] + song_answers),
+            "answers": _answers_from(prompts[u.id]),
+        }
+    return out
+
+
+def _score_fields(ta, tb):
+    shared_artists = _shared(ta["artists"], tb["artists"])
+    shared_genres = _shared(ta["genres"], tb["genres"])
+    shared_tracks = _shared(ta["tracks"], tb["tracks"])
+    answer_points, shared_answers = _answer_matches_from(ta["answers"], tb["answers"],
+                                                         ta["artists"], tb["artists"], shared_artists)
     display = _display_score(shared_artists, shared_genres, shared_tracks, answer_points)
+    return {
+        "raw_score": display / 100,
+        "display_score": display,
+        "shared_artists": shared_artists,
+        "shared_genres": shared_genres,
+        "shared_tracks": shared_tracks,
+        "shared_answers": shared_answers,
+    }
 
-    user_a, user_b = sorted([a, b], key=lambda u: str(u.id))
-    MatchScore.objects.update_or_create(
-        user_a=user_a, user_b=user_b,
-        defaults={
-            "raw_score": display / 100,
-            "display_score": display,
-            "shared_artists": shared_artists,
-            "shared_genres": shared_genres,
-            "shared_tracks": shared_tracks,
-            "shared_answers": shared_answers,
-        },
-    )
+
+def _save_scores(pairs, tastes):
+    """Write scores for many pairs at once: one read of the existing rows, then batched updates/inserts."""
+    if not pairs:
+        return
+    user_ids = {u.id for pair in pairs for u in pair}
+    existing = {(s.user_a_id, s.user_b_id): s for s in MatchScore.objects.filter(
+        user_a_id__in=user_ids, user_b_id__in=user_ids)}
+    now = timezone.now()
+    to_update, to_create = [], []
+    for first, second in pairs:
+        # Scored in the given order (the person being re-scored first, as before); stored as a sorted pair.
+        fields = _score_fields(tastes[first.id], tastes[second.id])
+        a, b = sorted((first, second), key=lambda u: str(u.id))
+        row = existing.get((a.id, b.id))
+        if row is None:
+            to_create.append(MatchScore(user_a=a, user_b=b, **fields))
+        elif any(getattr(row, name) != value for name, value in fields.items()):  # skip unchanged scores
+            for name, value in fields.items():
+                setattr(row, name, value)
+            row.computed_at = now
+            to_update.append(row)
+    MatchScore.objects.bulk_update(to_update, list(_SCORE_FIELDS) + ["computed_at"], batch_size=500)
+    MatchScore.objects.bulk_create(to_create, batch_size=500, ignore_conflicts=True)
+
+
+_SCORE_FIELDS = ("raw_score", "display_score", "shared_artists", "shared_genres", "shared_tracks", "shared_answers")
+
+
+def _scorable_users():
+    return CustomUser.objects.filter(top_artists__isnull=False, is_active=True).distinct()
 
 
 def recompute_all_scores():
-    """Full O(n^2) rebuild across every user. Not on any request path —
-    use for an explicit admin/backfill rebuild only. Per-sync updates should
-    use recompute_scores_for_user instead."""
-    users = list(CustomUser.objects.filter(top_artists__isnull=False).distinct())
-    for a, b in combinations(users, 2):
-        _upsert_score(a, b)
+    """Full rebuild across every user who could meet (admin/backfill only, not on a request path)."""
+    users = list(_scorable_users())
+    tastes = _tastes(users)
+    _save_scores([(a, b) for a, b in combinations(users, 2) if _visible_to_each_other(a, b)], tastes)
 
 
 def recompute_scores_for_user(user):
-    """Recompute MatchScore only for pairs involving this user. O(n) in the
-    number of other synced users, instead of O(n^2) over everyone."""
-    others = CustomUser.objects.filter(top_artists__isnull=False).exclude(id=user.id).distinct()
-    for other in others:
-        _upsert_score(user, other)
+    """Re-score this person against everyone they could meet. Pairs whose gender preferences rule each
+    other out are skipped (they never see each other); changing gender/preference re-scores."""
+    others = [o for o in _scorable_users().exclude(id=user.id) if _visible_to_each_other(user, o)]
+    tastes = _tastes([user] + others)
+    _save_scores([(user, o) for o in others], tastes)
 
 
 def unmatch(user, other_user):

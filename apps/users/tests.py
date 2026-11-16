@@ -918,3 +918,15 @@ class LocationRequiredTests(TestCase):
                                                           latitude=6.52, longitude=3.38)
         response = self.client.get("/taste/build/")
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(POSTHOG_KEY="phc_test")
+class AnalyticsIgnoreTeamTests(TestCase):
+    def test_team_accounts_are_never_tracked(self):
+        me = music_person("neo", "man", "woman")
+        other = music_person("ben", "man", "woman")
+        with override_settings(POSTHOG_IGNORE_USER_IDS={str(me.id)}):
+            self.client.force_login(me)
+            self.assertNotContains(self.client.get("/dashboard/"), "js/analytics.js")
+            self.client.force_login(other)
+            self.assertContains(self.client.get("/dashboard/"), "js/analytics.js")
