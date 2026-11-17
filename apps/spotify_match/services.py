@@ -566,8 +566,31 @@ def get_matches(user):
     for m in matches:
         other = m.user_b if m.user_a_id == user.id else m.user_a
         if other.id not in hidden and other.is_active:
+            other.matched_at = m.created_at
             result.append(other)
+    _attach_last_messages(user, result)
+    # Latest conversation first (a new match with no messages yet counts from when you matched).
+    result.sort(key=lambda o: o.last_message.created_at if o.last_message else o.matched_at, reverse=True)
     return result
+
+
+def _attach_last_messages(user, others):
+    """Each match's latest message (match.last_message, .last_unread), in 2 queries for the whole list."""
+    from apps.messaging.models import Conversation, Message
+    for o in others:
+        o.last_message, o.last_unread = None, False
+    if not others:
+        return
+    by_other = {}
+    for c in Conversation.objects.filter(models.Q(user_a=user) | models.Q(user_b=user)).values("id", "user_a_id", "user_b_id"):
+        by_other[c["user_b_id"] if c["user_a_id"] == user.id else c["user_a_id"]] = c["id"]
+    latest = {m.conversation_id: m for m in Message.objects.filter(conversation_id__in=by_other.values())
+              .order_by("conversation_id", "-created_at").distinct("conversation_id")}
+    for o in others:
+        message = latest.get(by_other.get(o.id))
+        if message:
+            o.last_message = message
+            o.last_unread = message.sender_id != user.id and message.read_at is None
 
 
 def get_user_profile_view(viewer, other_user):

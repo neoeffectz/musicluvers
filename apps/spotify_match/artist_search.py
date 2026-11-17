@@ -3,6 +3,10 @@
 No user login is involved, so this is not limited by the development-mode
 user allowlist.
 """
+import hashlib
+import json
+import logging
+
 import requests
 from django.core.cache import cache
 
@@ -11,6 +15,14 @@ from apps.users.services import TOKEN_URL, _basic_auth_header
 SEARCH_URL = "https://api.spotify.com/v1/search"
 ARTIST_URL = "https://api.spotify.com/v1/artists/{id}"
 TOKEN_CACHE_KEY = "spotify_app_token"
+COOLDOWN_KEY = "spotify_cooldown"       # set while Spotify has asked us to wait (429 + Retry-After)
+ANSWER_SECONDS = 24 * 3600              # the catalogue barely changes: the same search is asked once a day
+MAX_COOLDOWN = 6 * 3600
+logger = logging.getLogger(__name__)
+
+
+class SpotifyBusy(requests.exceptions.RequestException):
+    """Spotify asked us to slow down. Callers already handle RequestException (friendly message)."""
 
 
 def _app_token():
@@ -30,9 +42,33 @@ def _app_token():
 
 
 def _get(url, params=None):
+    """A Spotify catalogue request. Answers are remembered for a day, and when Spotify says "too many
+    requests" nothing more is sent until its wait is over: asking again during the wait makes the block
+    longer (it reached 4.6 hours once while testing)."""
+    key = "spotify:" + hashlib.sha1(f"{url}|{json.dumps(params or {}, sort_keys=True)}".encode()).hexdigest()
+    answer = cache.get(key)
+    if answer is not None:
+        return answer
+    if cache.get(COOLDOWN_KEY):
+        raise SpotifyBusy("Spotify asked us to wait")
     resp = requests.get(url, headers={"Authorization": f"Bearer {_app_token()}"}, params=params, timeout=10)
+    if resp.status_code == 429:
+        try:
+            wait = int(resp.headers.get("Retry-After") or 30)
+        except ValueError:
+            wait = 30
+        cache.set(COOLDOWN_KEY, True, timeout=max(1, min(wait, MAX_COOLDOWN)))
+        logger.warning("Spotify rate limit: pausing catalogue requests for %s seconds", wait)
+        raise SpotifyBusy("Spotify asked us to wait")
     resp.raise_for_status()
-    return resp.json()
+    answer = resp.json()
+    cache.set(key, answer, timeout=ANSWER_SECONDS)
+    return answer
+
+
+def _clean(query):
+    """Same search typed differently ("Ayra  Starr", "ayra starr") = one request."""
+    return " ".join(query.lower().split())[:100]
 
 
 def _to_artist(item):
@@ -45,10 +81,10 @@ def _to_artist(item):
 
 
 def search_artists(query, limit=8):
-    query = query.strip()
+    query = _clean(query)
     if len(query) < 2:
         return []
-    data = _get(SEARCH_URL, {"q": query[:100], "type": "artist", "limit": limit})
+    data = _get(SEARCH_URL, {"q": query, "type": "artist", "limit": limit})
     return [_to_artist(item) for item in data["artists"]["items"]]
 
 
@@ -65,15 +101,16 @@ def _to_track(item):
         "track_id": item["id"],
         "track_name": item["name"],
         "artist_name": item["artists"][0]["name"] if item.get("artists") else "",
-        "image_url": images[-1]["url"] if images else None,
+        # Spotify lists 640px, 300px, 64px: the middle one is sharp enough for the Lounge cover, still light
+        "image_url": images[min(1, len(images) - 1)]["url"] if images else None,
     }
 
 
 def search_tracks(query, limit=6):
-    query = query.strip()
+    query = _clean(query)
     if len(query) < 2:
         return []
-    data = _get(SEARCH_URL, {"q": query[:100], "type": "track", "limit": limit})
+    data = _get(SEARCH_URL, {"q": query, "type": "track", "limit": limit})
     return [_to_track(item) for item in data["tracks"]["items"]]
 
 

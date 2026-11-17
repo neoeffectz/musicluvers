@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from apps.users.models import CustomUser
 from . import services
 from .models import *
@@ -102,6 +102,11 @@ def thread_partial(request, conversation_id):
     thread_messages, has_more_older = services.get_messages(conversation, request.user)
     services.mark_read(conversation, request.user)
     other_user = services.get_other_user(conversation, request.user)
+    if request.GET.get("part") == "messages":   # just the messages (a concert card arrived): tabs stay as they are
+        return render(request, "messaging/partials/_thread_messages.html", {
+            "active_conversation": conversation, "thread_messages": thread_messages,
+            "has_more_older": has_more_older, "request": request,
+        })
     return render(request, "messaging/partials/_thread_panel.html", {
         "active_conversation": conversation,
         "other_user": other_user,
@@ -152,3 +157,88 @@ def mark_read_view(request, conversation_id):
         return HttpResponseForbidden()
     services.mark_read(conversation, request.user)
     return HttpResponse(status=204)
+
+
+# OUR CONCERTS
+
+def _concert_panel(request, conversation, error=None, form=None, status=200):
+    from . import concerts
+    other = services.get_other_user(conversation, request.user)
+    return render(request, "messaging/partials/_concerts.html", {
+        **concerts.board(conversation, request.user), "active_conversation": conversation, "other_user": other,
+        "error": error, "form": form or {}, "request": request,
+    }, status=status)
+
+
+def _concerts_off():
+    from . import concerts
+    return None if concerts.is_enabled() else HttpResponse("Not available.", status=404, content_type="text/plain")
+
+
+@login_required(login_url="users:home")
+def concerts_panel(request, conversation_id):
+    if _concerts_off():
+        return _concerts_off()
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    try:
+        return _concert_panel(request, conversation)
+    except PermissionError:
+        return HttpResponseForbidden("You can't see this.", content_type="text/plain")
+
+
+@login_required(login_url="users:home")
+@require_POST
+def concert_add(request, conversation_id):
+    if _concerts_off():
+        return _concerts_off()
+    from datetime import datetime
+    from . import concerts
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    form = {k: request.POST.get(k, "") for k in ("title", "venue", "date", "time", "ticket_url")}
+    try:
+        starts_at = datetime.strptime(f"{form['date']} {form['time'] or '19:00'}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        starts_at = None
+    try:
+        concerts.propose(conversation, request.user, form["title"], form["venue"], starts_at, form["ticket_url"])
+    except ValueError as e:
+        return _concert_panel(request, conversation, error=str(e), form=form, status=400)
+    except PermissionError:
+        return HttpResponseForbidden("You can't plan in this chat.", content_type="text/plain")
+    response = _concert_panel(request, conversation)
+    return analytics.track_response(response, "concert_proposed")
+
+
+@login_required(login_url="users:home")
+@require_POST
+def concert_action(request, plan_id, action):
+    if _concerts_off():
+        return _concerts_off()
+    from .models import ConcertPlan
+    from . import concerts
+    plan = get_object_or_404(ConcertPlan.objects.select_related("conversation", "proposed_by"), id=plan_id)
+    try:
+        if action in ("agree", "decline"):
+            concerts.respond(plan, request.user, agree=action == "agree")
+        elif action == "remove":
+            concerts.remove(plan, request.user)
+        elif action == "remind":
+            concerts.remind(plan, request.user)
+        elif action == "ticket":
+            concerts.toggle_ticket(plan, request.user)
+        elif action == "love":
+            concerts.toggle_love(plan, request.user)
+        else:
+            return HttpResponseBadRequest("Unknown action.", content_type="text/plain")
+    except PermissionError as e:
+        return HttpResponseForbidden(str(e), content_type="text/plain")
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e), content_type="text/plain")
+    if request.POST.get("from") == "card":   # answered from the card in the chat
+        plan.refresh_from_db()
+        response = render(request, "messaging/partials/_concert_card.html", {"plan": plan, "request": request})
+    else:
+        response = _concert_panel(request, plan.conversation)
+    if action == "agree":
+        analytics.track_response(response, "concert_agreed")
+    return response

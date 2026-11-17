@@ -5,7 +5,11 @@
       <img class="user-avatar" src="{{ match.photo_url|default:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' }}" alt="{{ match.first_name }}">
       <div class="user-details">
         <h5>{{ match.first_name|default:match.username }}{% if match.age %}, {{ match.age }}{% endif %}</h5>
-        <p><span class="status-dot" style="width:5px; height:5px;"></span> {{ match.location|default:"" }}</p>
+        {% if match.last_message %}
+          <p class="match-last{% if match.last_unread %} is-unread{% endif %}">{% if match.last_message.sender_id == request.user.id %}You: {% endif %}{{ match.last_message.body|truncatechars:48 }}</p>
+        {% else %}
+          <p><span class="status-dot" style="width:5px; height:5px;"></span> {{ match.location|default:"" }}</p>
+        {% endif %}
         <span class="view-profile-hint">View profile <i class="fa-solid fa-chevron-right"></i></span>
       </div>
     </a>

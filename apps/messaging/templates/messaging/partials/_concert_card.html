@@ -1,0 +1,26 @@
+{% comment %} The card in the chat that suggests a concert. The other person answers right here. {% endcomment %}
+<div class="cticket cticket-chat" id="concert-card-{{ plan.id }}">
+  {% include "messaging/partials/_concert_date.html" with when=plan.starts_at %}
+  <div class="cticket-body">
+    <span class="cticket-kicker">Concert plan</span>
+    <strong class="cticket-title">{{ plan.title }}</strong>
+    <span class="cticket-meta">{{ plan.venue }} · {{ plan.starts_at|date:"g:i A"|lower }}</span>
+    {% if plan.status == "proposed" %}
+      {% if plan.proposed_by_id == request.user.id %}
+        <span class="cchip">Waiting for an answer</span>
+      {% else %}
+        <div class="cticket-actions">
+          <button type="button" class="cbtn cbtn-primary" hx-post="{% url 'messaging:concert_action' plan_id=plan.id action='agree' %}"
+                  hx-vals='{"from": "card"}' hx-target="#concert-card-{{ plan.id }}" hx-swap="outerHTML" hx-disabled-elt="this">Agree</button>
+          <button type="button" class="cbtn" hx-post="{% url 'messaging:concert_action' plan_id=plan.id action='decline' %}"
+                  hx-vals='{"from": "card"}' hx-target="#concert-card-{{ plan.id }}" hx-swap="outerHTML" hx-disabled-elt="this">Not this one</button>
+        </div>
+        <button type="button" class="creport" onclick="openSafety('{{ plan.proposed_by_id }}')"><i class="fa-regular fa-flag"></i> Report</button>
+      {% endif %}
+    {% elif plan.status == "agreed" %}
+      <span class="cchip cchip-ok"><i class="fa-solid fa-check"></i> Agreed</span>
+    {% else %}
+      <span class="cchip">Not this one</span>
+    {% endif %}
+  </div>
+</div>

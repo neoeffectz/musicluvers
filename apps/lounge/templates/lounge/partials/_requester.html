@@ -1,9 +1,22 @@
-{% if req.user_id == request.user.id %}
-  <div class="lounge-requester"><span class="lounge-muted">{{ label }}</span> <strong>you</strong></div>
-{% else %}
-  <a href="#" class="lounge-requester" data-person="{{ req.user_id }}">
-    <img src="{{ req.user.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }}" alt="">
-    <span><span class="lounge-muted">{{ label }}</span> <strong>{{ req.user.first_name|default:"Someone" }}{% if req.user.age %}, {{ req.user.age }}{% endif %}</strong></span>
-    <span class="lounge-view">View <i class="fa-solid fa-chevron-right"></i></span>
-  </a>
-{% endif %}
+{% comment %} Who requested the song now playing (everyone who picked it). Filler music has no names. {% endcomment %}
+<div class="lounge-requesters">
+  {% if not req.requesters %}
+    <span class="lounge-muted">A random song from a Music Luvers profile, while the next 5 come in</span>
+  {% else %}
+    <span class="lounge-muted">{{ label }}</span>
+    {% for u in req.requesters %}
+      {% if u.id == request.user.id %}
+        <span class="lounge-requester-you">you</span>
+      {% elif u.id in blocked %}
+        <span class="lounge-requester-you">Someone</span>
+      {% else %}
+        <a href="#" class="lounge-requester" data-person="{{ u.id }}">
+          <img src="{{ u.photo_url|default:'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' }}" alt="">
+          <strong>{{ u.first_name|default:"Someone" }}{% if u.age %}, {{ u.age }}{% endif %}</strong>
+          <span class="lounge-view">View <i class="fa-solid fa-chevron-right"></i></span>
+        </a>
+      {% endif %}
+    {% endfor %}
+    {% if req.requesters|length > 1 %}<p class="lounge-same">{{ req.requesters|length }} people picked this song</p>{% endif %}
+  {% endif %}
+</div>

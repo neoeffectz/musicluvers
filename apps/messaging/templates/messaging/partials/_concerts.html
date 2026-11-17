@@ -1,0 +1,122 @@
+{% comment %} "Our Concerts": concerts the two of them have planned and agreed on. {% endcomment %}
+{% with name=other_user.first_name|default:"them" %}
+<div class="concerts">
+  <div class="concerts-head">
+    <div>
+      <h3>Our Concerts</h3>
+      <p>Shows you and {{ name }} plan to see together.</p>
+    </div>
+    {% if upcoming or done %}
+      <button type="button" class="cbtn cbtn-add" id="concert-add" {% if error %}hidden{% endif %}
+              onclick="this.hidden = true; document.getElementById('concert-form').hidden = false;">
+        <i class="fa-solid fa-plus"></i> Add</button>
+    {% endif %}
+  </div>
+
+  <div class="csafety">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div>
+      <strong>Going together? Stay safe</strong>
+      <ul>
+        <li>Meet in a public place, where the crowd is.</li>
+        <li>Tell a friend who you're going with and where.</li>
+        <li>Buy your own ticket and get there on your own.</li>
+        <li>Leave if anything feels wrong, and report it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <form class="cform" id="concert-form" {% if not error %}hidden{% endif %}
+        hx-post="{% url 'messaging:concert_add' conversation_id=active_conversation.id %}" hx-target="#thread-concerts" hx-swap="innerHTML">
+    <label>Artist or event<input class="profile-input" name="title" maxlength="120" placeholder="e.g. Asake" value="{{ form.title }}" required></label>
+    <label>Venue<input class="profile-input" name="venue" maxlength="120" placeholder="e.g. Eko Hotel, Lagos" value="{{ form.venue }}" required></label>
+    <div class="cform-row">
+      <label>Date<input class="profile-input" type="date" name="date" value="{{ form.date }}" required></label>
+      <label>Time<input class="profile-input" type="time" name="time" value="{{ form.time|default:'19:00' }}"></label>
+    </div>
+    <label>Ticket link <span>optional · Tix.africa, Nairabox, Eventbrite, Ticketmaster or DICE</span><input class="profile-input" type="url" name="ticket_url" maxlength="500" placeholder="https://tix.africa/..." value="{{ form.ticket_url }}"></label>
+    {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+    <div class="cform-row">
+      <button type="button" class="cbtn cbtn-wide" hx-get="{% url 'messaging:concerts' conversation_id=active_conversation.id %}" hx-target="#thread-concerts">Cancel</button>
+      <button type="submit" class="cbtn cbtn-primary cbtn-wide">Send to {{ name }}</button>
+    </div>
+  </form>
+
+  {% if not upcoming and not done %}
+    <div class="cempty" id="concert-empty" {% if error %}hidden{% endif %}>
+      <span class="cempty-icon"><i class="fa-solid fa-ticket"></i></span>
+      <strong>No plans yet</strong>
+      <p>Found a show you'd both enjoy? Suggest it and {{ name }} can agree in one tap.</p>
+      <button type="button" class="cbtn cbtn-primary"
+              onclick="document.getElementById('concert-empty').hidden = true; document.getElementById('concert-form').hidden = false;">
+        Suggest a concert</button>
+    </div>
+  {% endif %}
+
+  {% if upcoming %}
+    <section class="cgroup">
+      <span class="content-label">Coming up</span>
+      {% for p in upcoming %}
+        <article class="cticket">
+          {% include "messaging/partials/_concert_date.html" with when=p.starts_at %}
+          <div class="cticket-body">
+            <strong class="cticket-title">{{ p.title }}</strong>
+            <span class="cticket-meta">{{ p.venue }} · {{ p.starts_at|date:"g:i A"|lower }}</span>
+
+            {% if p.status == "agreed" %}
+              <span class="cchip cchip-ok"><i class="fa-solid fa-check"></i> Agreed · {% if p.days_to_go == 0 %}today{% elif p.days_to_go == 1 %}tomorrow{% else %}in {{ p.days_to_go }} days{% endif %}</span>
+              <div class="ctix">
+                <div class="ctix-row">
+                  <span>Your ticket</span>
+                  <button type="button" class="ctix-toggle{% if request.user.id in p.has_ticket_ids %} on{% endif %}"
+                          hx-post="{% url 'messaging:concert_action' plan_id=p.id action='ticket' %}" hx-target="#thread-concerts"
+                          aria-pressed="{% if request.user.id in p.has_ticket_ids %}true{% else %}false{% endif %}">
+                    {% if request.user.id in p.has_ticket_ids %}<i class="fa-solid fa-check"></i> Got it{% else %}Mark as bought{% endif %}</button>
+                </div>
+                <div class="ctix-row">
+                  <span>{{ name }}'s ticket</span>
+                  <span class="ctix-status{% if other_user.id in p.has_ticket_ids %} on{% endif %}">{% if other_user.id in p.has_ticket_ids %}<i class="fa-solid fa-check"></i> Got it{% else %}Not yet{% endif %}</span>
+                </div>
+              </div>
+              {% if p.ticket_url %}<a class="clink" href="{{ p.ticket_url }}" target="_blank" rel="noopener">Get tickets <i class="fa-solid fa-arrow-up-right-from-square"></i></a>{% endif %}
+
+            {% elif p.proposed_by_id == request.user.id %}
+              <span class="cchip">Waiting for {{ name }}</span>
+              <div class="cticket-actions">
+                {% if p.can_remind %}<button type="button" class="cbtn" hx-post="{% url 'messaging:concert_action' plan_id=p.id action='remind' %}" hx-target="#thread-concerts">Remind {{ name }}</button>
+                {% else %}<span class="cnote">Reminder sent</span>{% endif %}
+                <button type="button" class="cbtn cbtn-quiet" hx-post="{% url 'messaging:concert_action' plan_id=p.id action='remove' %}" hx-target="#thread-concerts">Remove</button>
+              </div>
+
+            {% else %}
+              <span class="cchip cchip-ask">{{ name }} suggested this</span>
+              <div class="cticket-actions">
+                <button type="button" class="cbtn cbtn-primary" hx-post="{% url 'messaging:concert_action' plan_id=p.id action='agree' %}" hx-target="#thread-concerts">Agree</button>
+                <button type="button" class="cbtn" hx-post="{% url 'messaging:concert_action' plan_id=p.id action='decline' %}" hx-target="#thread-concerts">Not this one</button>
+              </div>
+            {% endif %}
+            <button type="button" class="creport" onclick="openSafety('{{ other_user.id }}')"><i class="fa-regular fa-flag"></i> Report</button>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if done %}
+    <section class="cgroup">
+      <span class="content-label">Done together</span>
+      {% for p in done %}
+        <div class="cdone">
+          <div class="cdone-text"><strong>{{ p.title }}</strong><span>{{ p.venue }} · {{ p.starts_at|date:"M Y" }}</span></div>
+          <button type="button" class="cheart{% if request.user.id in p.loved_ids %} on{% endif %}"
+                  hx-post="{% url 'messaging:concert_action' plan_id=p.id action='love' %}" hx-target="#thread-concerts"
+                  aria-label="{% if request.user.id in p.loved_ids %}Unlove{% else %}Love{% endif %} this concert">
+            {% if p.loved_ids|length == 2 %}<span>You both loved it</span>{% endif %}
+            <i class="fa-{% if request.user.id in p.loved_ids %}solid{% else %}regular{% endif %} fa-heart"></i>
+          </button>
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+</div>
+{% endwith %}

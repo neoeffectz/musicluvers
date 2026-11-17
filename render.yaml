@@ -65,6 +65,8 @@ services:
         sync: false
       - key: LASTFM_API_KEY
         sync: false
+      - key: YOUTUBE_API_KEY        # the Lounge's shared player (full songs, in sync)
+        sync: false
       - key: VAPID_PUBLIC_KEY       # must be the SAME as local, or everyone has to re-enable notifications
         sync: false
       - key: VAPID_PRIVATE_KEY

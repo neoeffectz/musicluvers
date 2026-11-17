@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117c">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117s">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
   <script>
     document.addEventListener('htmx:configRequest', (event) => {
@@ -69,7 +69,7 @@
           <div class="messages-shell">
             <div class="conversations-panel-full">
               <h4 class="conversations-title">Your Matches</h4>
-              <div class="suggested-list" style="overflow-y:auto; gap:14px;">
+              <div class="suggested-list" id="matches-page-list" style="overflow-y:auto; gap:14px;">
                 {% include "spotify_match/partials/_matches_items.html" %}
               </div>
             </div>
@@ -111,6 +111,14 @@
     }
     document.getElementById("logout-btn")?.addEventListener("click", doLogout);
     document.getElementById("logout-btn-top")?.addEventListener("click", doLogout);
+  </script>
+  <script>
+    // A new message (or match) while you're here: the list updates by itself, newest chat on top.
+    window.onUserEvent = (event) => {
+      if (['new_message', 'notification', 'match_created'].includes(event.kind)) {
+        htmx.ajax('GET', '{% url "spotify_match:all_matches" %}', { target: '#matches-page-list', select: '#matches-page-list', swap: 'outerHTML' });
+      }
+    };
   </script>
 </body>
 </html>

@@ -131,10 +131,29 @@ CELERY_BEAT_SCHEDULE = {
     # Friday 5pm Lagos: "The Lounge is open" phone notification (once a week, costs nothing otherwise)
     "lounge-open": {"task": "apps.lounge.tasks.announce_lounge_open",
                     "schedule": crontab(minute=0, hour=17, day_of_week="fri")},
+    # Friday 4:30pm: warm-up songs picked and found on YouTube before the doors open
+    "lounge-warmup": {"task": "apps.lounge.tasks.prepare_lounge_warmup",
+                      "schedule": crontab(minute=30, hour=16, day_of_week="fri")},
 }
 
-# The Friday Lounge opens Fridays 5-6pm. LOUNGE_ALWAYS_OPEN=True opens it any day (for trying it out).
+# The Friday Lounge opens Fridays 5-5:30pm. LOUNGE_ALWAYS_OPEN=True opens it any day (for trying it out).
+# Browsers tell other sites only "musicluvers.site" (never the page address). YouTube's embedded player
+# refuses to play without it; Django's default ("same-origin") sent nothing.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 LOUNGE_ALWAYS_OPEN = env.bool("LOUNGE_ALWAYS_OPEN", default=False)
+LOUNGE_POOL_SIZE = env.int("LOUNGE_POOL_SIZE", default=5)
+
+# "Our Concerts" in chats (plan concerts with a match). Off for launch: meeting in person needs safety
+# tips, moderation and quick reporting in place first. CONCERTS_ENABLED=True brings it back.
+CONCERTS_ENABLED = env.bool("CONCERTS_ENABLED", default=False)
+# Ticket links are only accepted from these sites (a fake "ticket" page is an easy scam).
+CONCERT_TICKET_SITES = env.list("CONCERT_TICKET_SITES", default=[
+    "tix.africa", "nairabox.com", "eventbrite.com", "eventbrite.co.uk", "ticketmaster.com", "ticketmaster.co.uk",
+    "livenation.com", "dice.fm", "afrotix.com", "ticketsbay.com.ng",
+])  # songs per pool: it plays as soon as it's full
+# The Lounge plays full songs, in sync, through YouTube's player. Without a key it falls back to Spotify.
+YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", default="")
 
 LOGGING = {
     'version': 1,

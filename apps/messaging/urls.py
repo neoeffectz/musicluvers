@@ -12,4 +12,7 @@ urlpatterns = [
     path("list/", views.conversations_list_partial, name="list"),
     path("messages/<uuid:conversation_id>/older/", views.load_older_messages, name="load_older"),
     path("messages/<uuid:message_id>/like/", views.toggle_like_view, name="toggle_like"),
+    path("<uuid:conversation_id>/concerts/", views.concerts_panel, name="concerts"),
+    path("<uuid:conversation_id>/concerts/add/", views.concert_add, name="concert_add"),
+    path("concerts/<uuid:plan_id>/<str:action>/", views.concert_action, name="concert_action"),
 ]

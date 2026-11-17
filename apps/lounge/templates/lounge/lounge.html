@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117c">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117s">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
@@ -49,23 +49,52 @@
           <div class="lounge-head">
             <div>
               <h1>The Lounge</h1>
-              {% if is_open %}<p class="lounge-sub">Until 6pm. Request a song, see who picked what.</p>{% endif %}
+              {% if is_open %}<p class="lounge-sub">One playlist tonight. Request a song, see who picked what.</p>{% endif %}
             </div>
             {% if is_open %}<span class="lounge-people"><span class="lounge-live-dot"></span><strong id="lounge-people">{{ people }}</strong> here now</span>{% endif %}
           </div>
 
           {% if is_open %}
+            <div class="lounge-block" id="lounge-now" hidden>
+              <span class="content-label">Now playing</span>
+              <div class="lounge-card lounge-now">
+                <div class="lounge-video" id="lounge-video" hidden>
+                  <div id="yt-player"></div>
+                  {# Music, not a video: the song's cover sits over the picture (the sound still comes through) #}
+                  <div class="lounge-cover" id="lounge-cover" aria-hidden="true"><i class="fa-solid fa-compact-disc lounge-cover-icon"></i><img id="lounge-cover-img" alt=""></div>
+                  <button type="button" class="lounge-join" id="lounge-join">
+                    <i class="fa-solid fa-headphones"></i>
+                    <strong id="lounge-join-label">Join the music</strong>
+                    <span id="lounge-join-title"></span>
+                  </button>
+                </div>
+                {# Only for a song YouTube can't play: Spotify's player instead (each person presses play) #}
+                <iframe class="lounge-player" id="lounge-player" title="Now playing" hidden
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+                <div class="lounge-now-title" id="lounge-now-title"></div>
+                <div class="lounge-now-who" id="lounge-now-requester"></div>
+              </div>
+              <p class="lounge-more" id="lounge-more"></p>
+            </div>
             <div id="lounge-stage">{% include "lounge/partials/_stage.html" %}</div>
             <div class="lounge-block">
-              <span class="content-label">Your request this round</span>
-              <div id="my-request">{% include "lounge/partials/_my_request.html" %}</div>
+              <span class="content-label">Request a song</span>
+              <div class="lounge-card lounge-request">
+                <div class="lounge-round" id="lounge-round"></div>
+                <div id="my-request">{% include "lounge/partials/_my_request.html" %}</div>
+              </div>
             </div>
+            <div class="lounge-block" id="lounge-played"></div>
           {% else %}
             <div class="lounge-closed">
               {% include "lounge/partials/_illustration.html" %}
-              <h2>Friday Lounge, 5pm to 6pm</h2>
-              <p>An hour of music with everyone. Request a song, listen to the playlist and meet the people who picked the others.</p>
+              <h2>Friday Lounge, from 5pm</h2>
+              <p>One playlist of 5 songs, picked by the people in the room. Request a song, listen together and meet the people who picked the others.</p>
               <p class="lounge-countdown">Opens {{ next_opening|date:"l, j M" }} at 5pm</p>
+            </div>
+            <div class="lounge-block">
+              <span class="content-label">How it works</span>
+              <div class="lounge-card">{% include "lounge/partials/_rules.html" %}</div>
             </div>
           {% endif %}
         </div>
@@ -109,8 +138,152 @@
       timer = setTimeout(refreshStage, Math.max(3, secs) * 1000);
     };
     const refreshStage = () => htmx.ajax('GET', "{% url 'lounge:stage' %}", { target: '#lounge-stage', swap: 'innerHTML' });
-    document.body.addEventListener('htmx:afterSwap', (e) => { if (e.detail.target.id === 'lounge-stage') schedule(); });
+    // ---- The shared player ----
+    // Everyone hears the same moment: the server says how far into the song the Lounge is, and the
+    // YouTube player starts (or jumps) there. After one "Join the music" tap, songs follow on their own.
+    let yt = null, ytReady = false, joined = false, current = { yt: '', elapsed: 0, at: Date.now() };
+    window.onYouTubeIframeAPIReady = () => { ytReady = true; if (joined) play(); };
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+    const expected = () => current.elapsed + (Date.now() - current.at) / 1000;
+    const failed = new Set();
+    // YouTube first. Spotify shows only when YouTube can't play this song (never while YouTube plays).
+    const spotifyFor = (track) => {
+      const spotify = document.getElementById('lounge-player');
+      spotify.hidden = !track;
+      if (track && spotify.dataset.track !== track) {
+        spotify.dataset.track = track;
+        spotify.src = `https://open.spotify.com/embed/track/${track}?utm_source=generator&theme=0`;
+      }
+    };
+    const cantPlay = () => {
+      if (current.yt) failed.add(current.yt);
+      if (yt && yt.stopVideo) yt.stopVideo();
+      document.getElementById('lounge-video').hidden = true;
+      spotifyFor(current.track);
+    };
+    const play = () => {
+      if (!ytReady || !current.yt) return;
+      if (failed.has(current.yt)) return cantPlay();
+      if (!yt) {
+        yt = new YT.Player('yt-player', {
+          videoId: current.yt, width: '100%', height: '100%',
+          // No seek bar or keyboard shortcuts: it's a shared party, nobody moves the song for themselves.
+          playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, disablekb: 1, fs: 0,
+                        start: Math.floor(expected()), origin: location.origin },
+          events: {
+            // The song may have changed while the player was still loading: start whatever is on now.
+            onReady: (e) => {
+              if (failed.has(current.yt) || !current.yt) return;
+              if (e.target.__id !== current.yt) { e.target.__id = current.yt; e.target.loadVideoById({ videoId: current.yt, startSeconds: expected() }); }
+              else { e.target.seekTo(expected(), true); e.target.playVideo(); }
+              loadedAt = Date.now();
+            },
+            onStateChange: (e) => {
+              if (e.data === YT.PlayerState.ENDED) refreshStage();          // next song now
+              if (e.data === YT.PlayerState.PLAYING) keepInStep();          // resumed: straight back to live
+            },
+            // Only a real "won't play outside YouTube" (101/150) or "not found" (100) counts; YouTube also
+            // reports small hiccups (e.g. 5) while the song carries on playing.
+            onError: (e) => { if ([100, 101, 150].includes(e.data)) cantPlay(); },
+          },
+        });
+        yt.__id = current.yt;
+        loadedAt = Date.now();
+      } else if (!yt.loadVideoById) {
+        return;                         // player still loading: onReady picks up the current song
+      } else if (yt.__id !== current.yt) {
+        yt.loadVideoById({ videoId: current.yt, startSeconds: expected() });
+        yt.__id = current.yt;
+        loadedAt = Date.now();
+      } else if (yt.getCurrentTime && Math.abs(yt.getCurrentTime() - expected()) > 4) {
+        yt.seekTo(expected(), true);   // drifted (phone hiccup): back in step with everyone
+      }
+    };
+    // Everyone stays on the Lounge's timeline: if this phone drifts, pauses or gets moved, back to live.
+    const keepInStep = () => {
+      if (!joined || !yt || !yt.getPlayerState || yt.__id !== current.yt) return;
+      const state = yt.getPlayerState();
+      if (state === YT.PlayerState.PAUSED) yt.playVideo();
+      if (state === YT.PlayerState.PLAYING && Math.abs(yt.getCurrentTime() - expected()) > 3) yt.seekTo(expected(), true);
+    };
+    setInterval(keepInStep, 4000);
+    // Watchdog. A song that hasn't started yet isn't broken:
+    //  - still loading on a slow connection: give it up to 25 s
+    //  - the phone wants a fresh tap before a new song can play (iPhones do this): ask for one tap
+    // Only YouTube's own error (onError above) means "can't play here", and only then does that song
+    // get the "can't play here" note.
+    let loadedAt = 0;
+    const askForTap = () => {
+      document.getElementById('lounge-join-label').textContent = 'Tap to keep listening';
+      document.getElementById('lounge-join').hidden = false;
+    };
+    // Watches all the time, not just when a song loads: a phone can also stop the music mid-song
+    // (a call, another app taking the sound).
+    let stalledSince = 0;
+    const watchdog = () => {
+      if (!joined || !yt || !yt.getPlayerState || !current.yt || failed.has(current.yt)) return;
+      const state = yt.getPlayerState();
+      if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.ENDED) {
+        stalledSince = 0;
+        document.getElementById('lounge-join').hidden = true;
+        return;
+      }
+      stalledSince = stalledSince || loadedAt || Date.now();
+      if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) yt.playVideo();   // try first
+      const waited = Date.now() - stalledSince;
+      if (state === YT.PlayerState.BUFFERING ? waited > 25000 : waited > 5000) askForTap();
+    };
+    setInterval(watchdog, 2000);
+    document.getElementById('lounge-join').addEventListener('click', () => {
+      joined = true;
+      document.getElementById('lounge-join').hidden = true;
+      if (yt && yt.__id === current.yt && yt.playVideo) {   // a tap to carry on: back in step, then play
+        yt.seekTo(expected(), true);
+        yt.playVideo();
+        stalledSince = Date.now();
+      } else {
+        play();
+      }
+    });
+    // Show the current song. The players stay put: only load a new song when it actually changes.
+    const showNowPlaying = () => {
+      const stage = document.querySelector('#lounge-stage [data-refresh-in]');
+      const d = stage ? stage.dataset : {};
+      const track = d.nowTrack || '';
+      current = { yt: d.nowYt || '', track: d.nowTrack || '', elapsed: parseFloat(d.nowElapsed || '0'), at: Date.now() };
+      document.getElementById('lounge-now').hidden = !track;
+      const ytOk = current.yt && !failed.has(current.yt);
+      document.getElementById('lounge-video').hidden = !ytOk;
+      if (ytOk) document.getElementById('lounge-player').hidden = true;
+      document.getElementById('lounge-join-title').textContent = d.nowTitle || '';
+      const cover = document.getElementById('lounge-cover-img');
+      if (d.nowImage) { if (cover.getAttribute('src') !== d.nowImage) cover.src = d.nowImage; cover.hidden = false; }
+      else { cover.removeAttribute('src'); cover.hidden = true; }
+      document.getElementById('lounge-now-title').textContent = d.nowTitle || '';
+      if (ytOk) {
+        if (joined) play();
+      } else {
+        if (yt && yt.pauseVideo) yt.pauseVideo();
+        spotifyFor(track);
+      }
+      const fill = (slot, tpl) => {
+        const t = document.getElementById(tpl), el = document.getElementById(slot);
+        el.innerHTML = t ? t.innerHTML.trim() : '';
+        el.hidden = !el.innerHTML;
+      };
+      fill('lounge-now-requester', 'now-requester');
+      fill('lounge-more', 'more-tpl');
+      fill('lounge-round', 'round-tpl');
+      fill('lounge-played', 'played-tpl');
+    };
+    document.body.addEventListener('htmx:afterSwap', (e) => { if (e.detail.target.id === 'lounge-stage') { showNowPlaying(); schedule(); } });
+    showNowPlaying();
     schedule();
+    // Phones pause pages in the background (e.g. another app): catch up the moment it's back on screen.
+    const catchUp = () => { if (document.visibilityState === 'visible') refreshStage(); };
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('pageshow', (e) => { if (e.persisted) refreshStage(); });
+    window.addEventListener('focus', catchUp);
     // Countdown to the draw, updated every second without asking the server.
     setInterval(() => {
       document.querySelectorAll('[data-countdown]').forEach(el => {

@@ -1189,3 +1189,58 @@ class DeckReadyInAdvanceTests(TestCase):
         with mock.patch("apps.spotify_match.taste_catalog.resolve_artist", side_effect=resolve):
             artist = taste_catalog.random_deck_artist(["afrobeats"], queue=[("Ready One", "afrobeats")])
         self.assertEqual(artist["name"], "Ready One")
+
+
+class MatchesShowLatestMessageTests(TestCase):
+    """The Matches list shows each match's latest message (bold when it's new) with the newest chat on top."""
+    def test_latest_message_and_order(self):
+        from apps.messaging.models import Message
+        me, ada, bola = make_user("me"), make_user("ada"), make_user("bola")
+        for other in (ada, bola):
+            a, b = sorted([me, other], key=lambda u: str(u.id))
+            Match.objects.create(user_a=a, user_b=b)
+        a, b = sorted([me, ada], key=lambda u: str(u.id))
+        chat = Conversation.objects.create(user_a=a, user_b=b)
+        Message.objects.create(conversation=chat, sender=me, body="old one")
+        Message.objects.create(conversation=chat, sender=ada, body="hey you")
+        matches = services.get_matches(me)
+        self.assertEqual(matches[0], ada)                      # the chat with news is on top
+        self.assertEqual(matches[0].last_message.body, "hey you")
+        self.assertTrue(matches[0].last_unread)
+        self.assertIsNone(matches[1].last_message)             # bola: matched, no messages yet
+        self.client.force_login(me)
+        page = self.client.get("/matches/")
+        self.assertContains(page, "hey you")
+        self.assertContains(page, "is-unread")
+
+
+class SpotifyRateLimitTests(TestCase):
+    """When Spotify says "too many requests", the app waits instead of asking again (which makes the block
+    longer), and the same search isn't sent twice."""
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        cache.set("spotify_app_token", "tok")
+
+    def _resp(self, status, body=None, headers=None):
+        r = mock.Mock(status_code=status, headers=headers or {})
+        r.json.return_value = body or {"tracks": {"items": []}}
+        r.raise_for_status.return_value = None
+        return r
+
+    def test_a_429_pauses_requests_for_the_time_spotify_asks(self):
+        from apps.spotify_match import artist_search
+        with mock.patch("apps.spotify_match.artist_search.requests.get",
+                        return_value=self._resp(429, headers={"Retry-After": "600"})) as get:
+            with self.assertRaises(artist_search.SpotifyBusy):
+                artist_search.search_tracks("essence")
+            with self.assertRaises(artist_search.SpotifyBusy):
+                artist_search.search_tracks("calm down")
+        self.assertEqual(get.call_count, 1)               # the second search never reached Spotify
+
+    def test_same_search_is_asked_once(self):
+        from apps.spotify_match import artist_search
+        with mock.patch("apps.spotify_match.artist_search.requests.get", return_value=self._resp(200)) as get:
+            artist_search.search_tracks("Ayra Starr")
+            artist_search.search_tracks("  ayra   starr ")
+        self.assertEqual(get.call_count, 1)

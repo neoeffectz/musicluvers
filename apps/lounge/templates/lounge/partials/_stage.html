@@ -1,44 +1,40 @@
-{% comment %} Now playing / up next / played + this round's requests. Refreshes itself after refresh_in seconds. {% endcomment %}
-<div data-refresh-in="{{ refresh_in }}">
+{% comment %}
+  Refreshed at every song change / pool start. The page copies the <template> parts into their places
+  (requester, "more songs", pool counter, played list), so the player and the request box are never
+  rebuilt: the music doesn't cut out and a half-typed search isn't lost.
+{% endcomment %}
+<div data-refresh-in="{{ refresh_in }}" data-now-track="{{ now_playing.track_id|default:'' }}"
+     data-now-yt="{{ now_playing.youtube_id|default:'' }}" data-now-elapsed="{{ elapsed|default:0 }}"
+     data-now-image="{{ now_playing.image_url|default:'' }}"
+     data-now-title="{% if now_playing %}{{ now_playing.track_name }} · {{ now_playing.artist_name }}{% endif %}">
   {% if now_playing %}
-    <div class="lounge-block">
-      <span class="content-label">Now playing</span>
-      <div class="lounge-card lounge-now">
-        <iframe class="lounge-player" title="Play {{ now_playing.track_name }}" loading="lazy"
-                src="https://open.spotify.com/embed/track/{{ now_playing.track_id }}?utm_source=generator&amp;theme=0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
-        {% include "lounge/partials/_requester.html" with req=now_playing label="Requested by" %}
-      </div>
-    </div>
+    <template id="now-requester">{% include "lounge/partials/_requester.html" with req=now_playing label="Requested by" %}</template>
   {% else %}
     <div class="lounge-block">
       <span class="content-label">Now playing</span>
       <div class="lounge-card lounge-waiting">
         <i class="fa-solid fa-compact-disc"></i>
-        <p>{% if request_count %}The playlist starts when this round's requests are drawn.{% else %}Nothing yet. Be the first to request a song.{% endif %}</p>
+        <p>Music starts in a moment.</p>
       </div>
     </div>
   {% endif %}
 
-  <div class="lounge-round lounge-card">
-    <div><strong data-request-count>{{ request_count }}</strong> request{{ request_count|pluralize }} this round</div>
-    <div class="lounge-muted">
-      {% if draw_in %}10 random picks in <span data-countdown="{{ draw_in }}">{{ draw_in_text }}</span>
-      {% elif now_playing %}Drawn when this playlist ends
-      {% else %}Drawn as soon as someone requests{% endif %}
-    </div>
-  </div>
+  <template id="more-tpl">{% if up_next %}{# Titles stay a surprise: knowing what's next gives people a reason to leave. #}
+    <i class="fa-solid fa-compact-disc"></i> {{ up_next|length }} more song{{ up_next|length|pluralize }} in this playlist. Stay to hear who picked them.{% endif %}</template>
 
-  {% if up_next %}
-    <div class="lounge-block">
-      <span class="content-label">Up next</span>
-      {% for song in up_next %}{% include "lounge/partials/_song_row.html" %}{% endfor %}
-    </div>
-  {% endif %}
-  {% if played %}
-    <div class="lounge-block">
-      <span class="content-label">Played</span>
-      {% for song in played reversed %}{% include "lounge/partials/_song_row.html" %}{% endfor %}
-    </div>
-  {% endif %}
+  <template id="round-tpl">
+    {% if requests_closed %}
+      <span><strong>Tonight's playlist is on</strong></span>
+      <span>The Lounge closes when it ends</span>
+    {% else %}
+      <span><strong data-request-count>{{ pool_count }}</strong> of {{ pool_size }} songs in</span>
+      <span>Plays the moment it's full. Not full by {{ closes_at|time:"g:iA"|lower }}, the Lounge closes.</span>
+      <span class="lounge-pool-bar" style="--fill: {% widthratio pool_count pool_size 100 %}%"></span>
+    {% endif %}
+  </template>
+
+  <template id="played-tpl">{% if played %}
+    <span class="content-label">Played tonight</span>
+    <div class="lounge-list">{% for song in played %}{% include "lounge/partials/_song_row.html" %}{% endfor %}</div>
+  {% endif %}</template>
 </div>

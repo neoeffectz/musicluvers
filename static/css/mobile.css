@@ -320,27 +320,58 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .nav-live { font-size: 10px; font-weight: 700; color: #f3582c; margin-left: 4px; text-transform: uppercase; }
 
 .lounge-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.lounge { max-width: 640px; margin: 0 auto; padding: 16px 14px 28px; display: flex; flex-direction: column; gap: 18px; }
+.lounge { max-width: 640px; margin: 0 auto; padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 26px; min-width: 0; box-sizing: border-box; width: 100%; }
+.lounge > *, .lounge-block, .lounge-card { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .lounge-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.lounge-head h1 { font-size: 24px; margin: 0; color: #fff; }
-.lounge-sub { color: #8e8e93; font-size: 13px; margin: 4px 0 0; }
+.lounge-head h1 { font-size: 26px; line-height: 1.15; margin: 0; color: #fff; }
+.lounge-sub { color: #8e8e93; font-size: 13px; line-height: 1.45; margin: 6px 0 0; max-width: 240px; }
 .lounge-people { display: inline-flex; align-items: center; gap: 6px; color: #c7c7cc; font-size: 13px; white-space: nowrap; margin-top: 4px; }
 .lounge-people strong { color: #fff; }
 .lounge-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #f3582c; }
-.lounge-block { display: flex; flex-direction: column; gap: 8px; }
+.lounge-block { display: flex; flex-direction: column; gap: 10px; }
+.lounge-block[hidden] { display: none; }
+#lounge-stage, #lounge-stage > div { display: contents; }  /* its parts sit in the page's own spacing */
 .lounge-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px; }
-.lounge-now { display: flex; flex-direction: column; gap: 12px; padding: 10px; }
+.lounge-now { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.lounge-now-who { border-top: 1px solid rgba(255,255,255,0.07); padding-top: 12px; }
+.lounge-now-who[hidden] { display: none; }
 .lounge-player { width: 100%; height: 152px; border: 0; border-radius: 12px; display: block; }
+.lounge-player[hidden], .lounge-video[hidden] { display: none; }
+/* Square, album-art style: official audio uploads show just the cover. (YouTube's rules: the player stays visible, at least 200x200.) */
+.lounge-video { position: relative; width: min(100%, 300px); aspect-ratio: 1 / 1; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #000; }
+.lounge-video iframe, .lounge-video #yt-player { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.lounge-join { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  border: 0; background: rgba(16,18,22,0.92); color: #fff; font-family: inherit; cursor: pointer; text-align: center; padding: 16px; }
+.lounge-join[hidden] { display: none; }
+.lounge-join i { font-size: 26px; color: #f3582c; }
+.lounge-join strong { font-size: 17px; }
+.lounge-join span { color: #a1a1a8; font-size: 13px; max-width: 90%; }
+.lounge-now-title { text-align: center; color: #fff; font-weight: 600; font-size: 16px; line-height: 1.35; padding: 0 8px; }
+.lounge-now-title:empty { display: none; }
+.lounge-more { display: flex; align-items: center; gap: 8px; color: #a1a1a8; font-size: 13px; line-height: 1.4; margin: 2px 4px 0; }
+.lounge-more[hidden] { display: none; }
+.lounge-more i { color: #f3582c; }
 .lounge-waiting { display: flex; align-items: center; gap: 12px; color: #a1a1a8; font-size: 14px; }
 .lounge-waiting i { color: #f3582c; font-size: 22px; }
 .lounge-waiting p { margin: 0; }
-.lounge-round { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; color: #fff; }
+.lounge-request { display: flex; flex-direction: column; gap: 12px; }
+.lounge-round { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; color: #a1a1a8;
+  padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.lounge-round strong { color: #fff; font-size: 15px; }
+.lounge-round > span:last-child { text-align: right; }
 .lounge-muted { color: #8e8e93; font-size: 13px; }
-.lounge-note { margin: 6px 2px 0; }
-.lounge-requester { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-size: 14px; padding: 2px 4px; }
+.lounge-note { margin: 2px 0 0; }
+.lounge-requesters { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+.lounge-requester { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-size: 14px; padding: 2px 0; }
+.lounge-requester-you { color: #fff; font-weight: 600; font-size: 14px; }
+.lounge-same { margin: 2px 0 0; color: #f3582c; font-size: 12px; font-weight: 600; }
+.lounge-by-group { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .lounge-requester img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
 .lounge-view { margin-left: auto; color: #f3582c; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.lounge-song { display: flex; align-items: center; gap: 12px; padding: 6px 0; min-width: 0; }
+.lounge-song { display: flex; align-items: center; gap: 12px; padding: 4px 0; min-width: 0; }
+.lounge-list { display: flex; flex-direction: column; }
+.lounge-list .lounge-song { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.lounge-list .lounge-song:last-child { border-bottom: 0; }
 .lounge-song > img, .lounge-song-art { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: rgba(255,255,255,0.08); }
 .lounge-song-art { display: flex; align-items: center; justify-content: center; color: #8e8e93; }
 .lounge-song-text { flex: 1; min-width: 0; }
@@ -368,3 +399,131 @@ input[type="date"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .lounge-person-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .lounge-person-head h2 { color: #fff; font-size: 22px; margin: 0; }
 .lounge-person-actions { margin-top: 4px; }
+
+/* Lounge rules */
+.lounge-rules { margin: 0; padding: 0 0 0 20px; display: flex; flex-direction: column; gap: 10px; color: #a1a1a8; font-size: 14px; line-height: 1.5; }
+.lounge-rules li::marker { color: #f3582c; font-weight: 700; }
+.lounge-rules strong { color: #fff; font-weight: 600; }
+.lounge-how { margin-top: -10px; }
+.lounge-how summary { list-style: none; cursor: pointer; color: #a1a1a8; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.lounge-how summary::-webkit-details-marker { display: none; }
+.lounge-how summary i { color: #f3582c; }
+.lounge-how[open] summary { margin-bottom: 12px; color: #fff; }
+.lounge-how[open] .lounge-rules { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px 14px 14px 34px; }
+
+/* Pool progress + block button */
+.lounge-round { flex-wrap: wrap; position: relative; }
+.lounge-pool-bar { flex-basis: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; margin-top: 2px; }
+.lounge-pool-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%); background: #f3582c; border-radius: 2px; transition: width .3s; }
+.lounge-block-btn { margin-top: 2px; color: #c7c7cc; font-size: 14px; height: 42px; }
+
+/* Chat: Messages / Our Concerts */
+.thread-tabs { display: flex; gap: 6px; padding: 10px 16px 0; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+.thread-tab { background: none; border: 0; color: #8e8e93; font-family: inherit; font-size: 14px; font-weight: 600; padding: 8px 10px 10px;
+  cursor: pointer; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px; }
+.thread-tab.active { color: #fff; border-bottom-color: #f3582c; }
+.thread-tab-count { background: rgba(243,88,44,0.18); color: #f3582c; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+.thread-concerts { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 24px; }
+.thread-concerts[hidden], .thread-messages[hidden], .thread-input-bar[hidden] { display: none !important; }
+
+.concerts { display: flex; flex-direction: column; gap: 22px; max-width: 560px; margin: 0 auto; }
+.concerts-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.concerts-head h3 { margin: 0; color: #fff; font-size: 20px; }
+.concerts-head p { margin: 4px 0 0; color: #8e8e93; font-size: 13px; }
+
+.cbtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12); color: #fff; font-family: inherit; font-size: 13px; font-weight: 600;
+  height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.cbtn-primary { background: #f3582c; border-color: #f3582c; }
+.cbtn-quiet { background: none; border-color: transparent; color: #8e8e93; }
+.cbtn-add { height: 32px; padding: 0 12px; }
+.cbtn-wide { flex: 1; height: 44px; font-size: 14px; }
+.cbtn[hidden] { display: none; }
+
+.csafety { display: flex; gap: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 14px; }
+.csafety > i { color: #f3582c; font-size: 18px; margin-top: 2px; }
+.csafety strong { color: #fff; font-size: 14px; }
+.csafety ul { margin: 6px 0 0; padding-left: 16px; color: #a1a1a8; font-size: 13px; line-height: 1.55; }
+
+.cform { display: flex; flex-direction: column; gap: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 16px; }
+.cform[hidden] { display: none; }
+.cform label { display: flex; flex-direction: column; gap: 6px; color: #c7c7cc; font-size: 13px; font-weight: 600; }
+.cform label span { color: #8e8e93; font-weight: 400; font-size: 12px; }
+.cform .profile-input { margin: 0; }
+.cform-row { display: flex; gap: 10px; }
+.cform-row > * { flex: 1; min-width: 0; }
+
+.cempty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 24px 12px; }
+.cempty[hidden] { display: none; }
+.cempty-icon { width: 64px; height: 64px; border-radius: 50%; background: rgba(243,88,44,0.12); color: #f3582c;
+  display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 6px; }
+.cempty strong { color: #fff; font-size: 17px; }
+.cempty p { color: #8e8e93; font-size: 14px; line-height: 1.5; margin: 0 0 8px; max-width: 280px; }
+
+.cgroup { display: flex; flex-direction: column; gap: 10px; }
+/* Ticket: date stub on the left, details on the right */
+.cticket { display: flex; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; }
+.cdate { flex-shrink: 0; width: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 12px 0; background: rgba(243,88,44,0.1); border-right: 1px dashed rgba(255,255,255,0.14); }
+.cdate-month { color: #f3582c; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.cdate-day { color: #fff; font-size: 24px; font-weight: 700; line-height: 1.1; }
+.cdate-week { color: #a1a1a8; font-size: 11px; }
+.cticket-body { flex: 1; min-width: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cticket-kicker { color: #8e8e93; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.cticket-title { color: #fff; font-size: 16px; line-height: 1.25; overflow-wrap: anywhere; }
+.cticket-meta { color: #a1a1a8; font-size: 13px; overflow-wrap: anywhere; }
+.cticket-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.cchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #c7c7cc;
+  background: rgba(255,255,255,0.07); border-radius: 999px; padding: 4px 10px; }
+.cchip-ok { color: #4cd38a; background: rgba(76,211,138,0.12); }
+.cchip-ask { color: #f3582c; background: rgba(243,88,44,0.12); }
+.cnote { color: #8e8e93; font-size: 13px; align-self: center; }
+.ctix { width: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07); }
+.ctix-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: #a1a1a8; }
+.ctix-toggle { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: #fff; font-family: inherit; font-size: 12px;
+  font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.ctix-toggle.on, .ctix-status.on { color: #4cd38a; }
+.ctix-toggle.on { background: rgba(76,211,138,0.12); border-color: rgba(76,211,138,0.35); }
+.ctix-status { font-size: 12px; font-weight: 600; color: #8e8e93; }
+.clink { color: #f3582c; font-size: 13px; font-weight: 600; text-decoration: none; }
+.creport { background: none; border: 0; color: #8e8e93; font-family: inherit; font-size: 12px; cursor: pointer; padding: 4px 0 0; display: inline-flex; gap: 5px; align-items: center; }
+
+.cdone { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 14px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+.cdone-text { display: flex; flex-direction: column; min-width: 0; }
+.cdone-text strong { color: #fff; font-size: 14px; }
+.cdone-text span { color: #8e8e93; font-size: 12px; }
+.cheart { background: none; border: 0; color: #8e8e93; font-family: inherit; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.cheart i { font-size: 18px; }
+.cheart.on i { color: #f3582c; }
+
+/* The suggestion card inside the chat: the ticket stands on its own (no bubble around it) */
+.message-bubble.has-ticket { background: none !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }
+.message-bubble.has-ticket .message-time { display: block; margin-top: 4px; padding: 0 4px; }
+.cticket-chat { width: min(290px, 78vw); background: #1c1d22; border-color: rgba(255,255,255,0.1); margin: 0; }
+
+/* Matches list: each match's latest message (bold when it's new to you) */
+.match-last { color: #8e8e93; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.match-last.is-unread { color: #fff; font-weight: 700; }
+.user-details { min-width: 0; }
+.user-meta, .user-meta-link { min-width: 0; }
+/* Phones: the name lines up with the location under it (it sat centred, so it looked pushed in) */
+@media (max-width: 900px) {
+  .user-title-group { text-align: left; }
+  .user-display-name { justify-content: flex-start; }
+}
+
+/* Lounge: the song's cover over YouTube's picture, so it feels like music, not TV */
+.lounge-cover { position: absolute; inset: 0; z-index: 1; background: radial-gradient(circle at 50% 40%, #2a2b31, #16171b); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.lounge-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lounge-cover-icon { font-size: 72px; color: #3a3b42; }
+.lounge-cover img[hidden] { display: none; }
+
+/* "Get a buzz" card: compact on phones */
+@media (max-width: 480px) {
+  .pwa-nudge { padding: 8px 10px; gap: 8px; }
+  .pwa-nudge-text { font-size: 11px; }
+  .pwa-nudge-text strong { font-size: 13px; }
+  .pwa-nudge .pwa-btn { padding: 7px 12px; font-size: 13px; }
+}

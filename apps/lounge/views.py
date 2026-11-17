@@ -38,17 +38,24 @@ def lounge_page(request):
 @login_required(login_url="users:home")
 def stage_partial(request):
     if not schedule.is_open():
-        return HttpResponse(status=286)  # htmx: stop polling; the page shows "closed" on next load
+        # Just closed: reload the page so everyone sees the "closed" screen straight away
+        return HttpResponse(headers={"HX-Refresh": "true"})
     return render(request, "lounge/partials/_stage.html", services.stage(request.user))
 
 
 @login_required(login_url="users:home")
 def search(request):
+    query = request.GET.get("q", "")
+    if len(query.strip()) < 3:   # wait for a few letters: fewer requests to Spotify
+        return render(request, "lounge/partials/_search_results.html", {"results": [], "error": None})
     try:
-        results, error = artist_search.search_tracks(request.GET.get("q", "")), None
-    except requests.exceptions.RequestException:
-        logger.exception("Lounge song search failed")
-        results, error = [], "Search is unavailable right now. Try again in a moment."
+        results, error = artist_search.search_tracks(query), None
+    except requests.exceptions.RequestException as e:
+        if not isinstance(e, artist_search.SpotifyBusy):
+            logger.exception("Lounge song search failed")
+        # Spotify busy or down: songs the Lounge already knows still come up
+        results = services.search_known_songs(query)
+        error = None if results else "Search is busy right now. Try again in a few minutes."
     return render(request, "lounge/partials/_search_results.html", {"results": results, "error": error})
 
 

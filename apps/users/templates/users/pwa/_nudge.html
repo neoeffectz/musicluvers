@@ -13,10 +13,12 @@
   const box = document.getElementById('pwa-nudge');
   const KEY = 'ml-push-nudge-dismissed';
   const dismissed = () => { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } };
+  // Only on Discover: on My Sound / Profile it sat above everything and took a quarter of a small screen.
+  const onDiscover = () => { const tab = new URLSearchParams(location.search).get('tab'); return !tab || tab === 'discover'; };
   function show() {
     if (typeof window.mlPushState !== 'function') { setTimeout(show, 200); return; }
     const state = window.mlPushState();
-    if (dismissed() || !['off', 'ios-install-first'].includes(state)) return;
+    if (!onDiscover() || dismissed() || !['off', 'ios-install-first'].includes(state)) { box.hidden = true; return; }
     if (state === 'ios-install-first') {
       document.getElementById('pwa-nudge-sub').innerHTML = 'On iPhone: tap <b>Share</b> → <b>Add to Home Screen</b>, then open Music Luvers from there.';
       document.getElementById('pwa-nudge-go').hidden = true;
@@ -30,6 +32,8 @@
     box.hidden = true;
   };
   document.addEventListener('ml-push-on', () => { box.hidden = true; });
+  document.addEventListener('htmx:pushedIntoHistory', show);   // switched tab
+  window.addEventListener('popstate', () => setTimeout(show, 0));
   setTimeout(show, 1500);
 })();
 </script>

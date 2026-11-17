@@ -29,5 +29,10 @@
         <i class="fa-solid fa-heart"></i> Like</button>
     {% endif %}
   </div>
+  <button type="button" class="btn-pill btn-pill-ghost lounge-block-btn"
+          onclick="document.getElementById('lounge-sheet').hidden = true; openSafety('{{ u.id }}');">
+    <i class="fa-solid fa-ban"></i> Block or report {{ u.first_name|default:"them" }}
+  </button>
 </div>
+{% include "users/safety/_sheet.html" with target=u next_url="/lounge/" %}
 {% endwith %}

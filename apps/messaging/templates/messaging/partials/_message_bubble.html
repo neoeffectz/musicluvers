@@ -1,6 +1,7 @@
 <div class="message-row {% if msg.sender_id == request.user.id %}sent{% else %}received{% endif %}" id="msg-{{ msg.id }}">
-  <div class="message-bubble">
-    {{ msg.body }}
+  {% load concert_tags %}{% concerts_on as concerts_enabled %}
+  <div class="message-bubble{% if concerts_enabled and msg.concert and msg.concert.proposed_by_id == msg.sender_id %} has-ticket{% endif %}">
+    {% if concerts_enabled and msg.concert and msg.concert.proposed_by_id == msg.sender_id %}{% include "messaging/partials/_concert_card.html" with plan=msg.concert %}{% else %}{{ msg.body }}{% endif %}
     <span class="message-time">{{ msg.created_at|time:"g:i A" }}</span>
     <button class="btn-like-msg {% if request.user in msg.liked_by.all %}liked{% endif %}"
             hx-post="{% url 'messaging:toggle_like' message_id=msg.id %}"

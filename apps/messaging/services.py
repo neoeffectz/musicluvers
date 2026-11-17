@@ -86,6 +86,7 @@ def live_payload(message):
         "sender_id": str(message.sender_id),
         "body": message.body,
         "created_at": message.created_at.strftime("%-I:%M %p"),
+        "concert": bool(message.concert_id),   # the page reloads the chat to show the full card
     }
 
 
@@ -121,7 +122,8 @@ def get_messages(conversation, requesting_user, before=None, limit=PAGE_SIZE):
     if requesting_user.id not in [conversation.user_a_id, conversation.user_b_id]:
         raise PermissionError("Not part of this conversation.")
 
-    qs = conversation.messages.select_related("sender").prefetch_related("liked_by").order_by("-created_at", "-id")
+    qs = (conversation.messages.select_related("sender", "concert").prefetch_related("liked_by")
+          .order_by("-created_at", "-id"))
 
     if before:
         try:

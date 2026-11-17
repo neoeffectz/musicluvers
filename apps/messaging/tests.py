@@ -1,11 +1,11 @@
 from unittest import mock
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from apps.events import catalog
 from apps.events.testing import EagerEventsMixin
 from apps.users.models import CustomUser
 from apps.spotify_match.models import Match
 from . import services
-from .models import Conversation, Message
+from .models import ConcertPlan, Conversation, Message
 
 
 class AppLoadsTests(TestCase):
@@ -238,3 +238,150 @@ class InboxUpdatesInstantlyTests(TestCase):
         self.assertIn('has-new" data-tab="messages"', page)
         self.client.force_login(self.a)  # the sender has nothing unread
         self.assertNotIn('has-new" data-tab="messages"', self.client.get("/matches/").content.decode())
+
+
+@override_settings(CONCERTS_ENABLED=True)
+class OurConcertsTests(TestCase):
+    """Concerts two matches plan together, kept in their chat."""
+    def setUp(self):
+        from datetime import datetime, timedelta
+        self.a, self.b = make_user("ca"), make_user("cb")
+        self.a.first_name, self.b.first_name = "Neo", "Tola"
+        self.a.save(), self.b.save()
+        x, y = sorted([self.a, self.b], key=lambda u: str(u.id))
+        Match.objects.create(user_a=x, user_b=y)
+        self.conversation = Conversation.objects.create(user_a=x, user_b=y)
+        self.soon = datetime.now() + timedelta(days=27)
+        self.patcher = mock.patch("apps.messaging.services.deliver_live")
+        self.patcher.start()
+        self.addCleanup(self.patcher.stop)
+
+    def propose(self, **kw):
+        from . import concerts
+        args = dict(title="Asake", venue="Eko Hotel", starts_at=self.soon, ticket_url="")
+        args.update(kw)
+        return concerts.propose(self.conversation, self.a, **args)
+
+    def test_proposing_puts_a_card_in_the_chat(self):
+        plan = self.propose()
+        card = Message.objects.get(concert=plan)
+        self.assertEqual(card.sender, self.a)
+        self.assertIn("Asake at Eko Hotel", card.body)
+        self.client.force_login(self.b)
+        page = self.client.get(f"/messages/thread/{self.conversation.id}/").content.decode()
+        self.assertIn("Concert plan", page)
+        self.assertIn(f"/messages/concerts/{plan.id}/agree/", page)       # Tola can answer right there
+        self.assertIn("Our Concerts", page)
+
+    def test_checks_before_saving(self):
+        from datetime import datetime, timedelta
+        for kw, msg in [({"title": ""}, "artist or event"), ({"venue": ""}, "venue"),
+                        ({"starts_at": datetime.now() - timedelta(days=1)}, "hasn't passed"),
+                        ({"ticket_url": "javascript:alert(1)"}, "Ticket links can only be from"),
+                        ({"ticket_url": "https://tix-africa.scam.site/pay"}, "Ticket links can only be from"),
+                        ({"ticket_url": "http://tix.africa/e/asake"}, "Ticket links can only be from")]:
+            with self.assertRaisesMessage(ValueError, msg):
+                self.propose(**kw)
+
+    def test_agree_posts_a_note_and_not_this_one_quietly_removes(self):
+        from . import concerts
+        plan = self.propose()
+        with self.assertRaises(PermissionError):
+            concerts.respond(plan, self.a, agree=True)                       # can't agree to your own
+        concerts.respond(plan, self.b, agree=True)
+        self.assertTrue(Message.objects.filter(sender=self.b, body__startswith="Agreed: Asake").exists())
+        other = self.propose(title="Tems", venue="Landmark Beach")
+        before = Message.objects.count()
+        concerts.respond(other, self.b, agree=False)
+        self.assertEqual(Message.objects.count(), before)                    # no awkward message
+        board = concerts.board(self.conversation, self.a)
+        self.assertEqual([p.title for p in board["upcoming"]], ["Asake"])
+
+    def test_remind_once_a_day_and_remove_while_waiting(self):
+        from . import concerts
+        plan = self.propose()
+        concerts.remind(plan, self.a)
+        self.assertTrue(Message.objects.filter(body__startswith="Still up for Asake").exists())
+        with self.assertRaisesMessage(ValueError, "already sent"):
+            concerts.remind(plan, self.a)
+        concerts.remove(plan, self.a)
+        self.assertEqual(concerts.board(self.conversation, self.a)["upcoming"], [])
+
+    def test_tickets_each_person_marks_their_own(self):
+        from . import concerts
+        plan = self.propose()
+        with self.assertRaises(PermissionError):
+            concerts.toggle_ticket(plan, self.a)                             # not agreed yet
+        concerts.respond(plan, self.b, agree=True)
+        concerts.toggle_ticket(plan, self.a)
+        shown = concerts.board(self.conversation, self.b)["upcoming"][0]
+        self.assertEqual(shown.has_ticket_ids, {self.a.id})
+        self.assertEqual(shown.days_to_go, 27)
+
+    def test_after_the_date_it_is_done_together_and_can_be_loved(self):
+        from datetime import datetime, timedelta
+        from . import concerts
+        plan = self.propose()
+        concerts.respond(plan, self.b, agree=True)
+        ConcertPlan.objects.filter(id=plan.id).update(starts_at=datetime.now() - timedelta(days=3))
+        board = concerts.board(self.conversation, self.a)
+        self.assertEqual(board["upcoming"], [])
+        self.assertEqual([p.title for p in board["done"]], ["Asake"])
+        plan.refresh_from_db()
+        concerts.toggle_love(plan, self.a)
+        concerts.toggle_love(plan, self.b)
+        self.assertEqual(plan.loved_by.count(), 2)
+
+    def test_only_matched_people_in_the_chat(self):
+        from . import concerts
+        stranger = make_user("cz")
+        with self.assertRaises(PermissionError):
+            concerts.propose(self.conversation, stranger, "X", "Y", self.soon)
+        Match.objects.all().delete()                                        # unmatched
+        with self.assertRaises(PermissionError):
+            self.propose()
+
+    def test_pages_add_and_answer(self):
+        self.client.force_login(self.a)
+        page = self.client.get(f"/messages/{self.conversation.id}/concerts/")
+        self.assertContains(page, "No plans yet")
+        bad = self.client.post(f"/messages/{self.conversation.id}/concerts/add/", {"title": "", "venue": "V", "date": "2030-01-01"})
+        self.assertContains(bad, "Add the artist or event", status_code=400)
+        ok = self.client.post(f"/messages/{self.conversation.id}/concerts/add/",
+                              {"title": "Asake", "venue": "Eko Hotel", "date": self.soon.strftime("%Y-%m-%d"), "time": "20:00"})
+        self.assertContains(ok, "Waiting for Tola")
+        self.assertContains(ok, "Meet in a public place")                    # safety tips
+        self.assertContains(ok, f"openSafety('{self.b.id}')")               # report on the card
+        plan = ConcertPlan.objects.get()
+        self.client.force_login(self.b)
+        answered = self.client.post(f"/messages/concerts/{plan.id}/agree/", {"from": "card"})
+        self.assertContains(answered, "Agreed")
+        panel = self.client.get(f"/messages/{self.conversation.id}/concerts/")
+        self.assertContains(panel, "Agreed · in")
+        self.assertContains(panel, "Mark as bought")
+        self.assertNotContains(panel, "\U0001F3A4")   # no emojis
+
+
+    def test_known_ticket_sites_are_accepted(self):
+        for url in ["https://tix.africa/e/asake-live", "https://www.eventbrite.com/e/123", "https://nairabox.com/tickets/9"]:
+            self.assertEqual(self.propose(ticket_url=url).ticket_url, url)
+
+    def test_card_in_chat_has_report(self):
+        plan = self.propose()
+        self.client.force_login(self.b)
+        page = self.client.get(f"/messages/thread/{self.conversation.id}/").content.decode()
+        self.assertIn(f"openSafety('{self.a.id}')", page)
+
+
+class ConcertsSwitchedOffTests(TestCase):
+    """Off by default for launch: no tab, no pages."""
+    def test_no_tab_and_no_pages_when_off(self):
+        a, b = make_user("oa"), make_user("ob")
+        x, y = sorted([a, b], key=lambda u: str(u.id))
+        Match.objects.create(user_a=x, user_b=y)
+        conversation = Conversation.objects.create(user_a=x, user_b=y)
+        self.client.force_login(a)
+        page = self.client.get(f"/messages/thread/{conversation.id}/").content.decode()
+        self.assertNotIn("Our Concerts", page)
+        self.assertEqual(self.client.get(f"/messages/{conversation.id}/concerts/").status_code, 404)
+        self.assertEqual(self.client.post(f"/messages/{conversation.id}/concerts/add/", {"title": "x"}).status_code, 404)

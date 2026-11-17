@@ -20,6 +20,17 @@
   </div>
   {% include "users/safety/_sheet.html" with target=other_user next_url="/messages/" %}
 
+  {% load concert_tags %}{% concerts_on as concerts_enabled %}
+  {% if concerts_enabled %}{% upcoming_concerts active_conversation as concert_count %}
+  <div class="thread-tabs" role="tablist">
+    <button type="button" class="thread-tab active" data-pane="chat" role="tab" onclick="showThreadPane('chat')">Messages</button>
+    <button type="button" class="thread-tab" data-pane="concerts" role="tab" onclick="showThreadPane('concerts')"
+            hx-get="{% url 'messaging:concerts' conversation_id=active_conversation.id %}" hx-target="#thread-concerts" hx-trigger="click">
+      Our Concerts{% if concert_count %} <span class="thread-tab-count">{{ concert_count }}</span>{% endif %}</button>
+  </div>
+  <div class="thread-concerts" id="thread-concerts" hidden></div>
+  {% endif %}
+
   <div class="thread-messages ph-no-capture" id="thread-messages">
     {% include "messaging/partials/_thread_messages.html" %}
   </div>

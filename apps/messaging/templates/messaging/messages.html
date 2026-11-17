@@ -9,7 +9,7 @@
   {% include "users/pwa/_head.html" %}
   <link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20261114g">
   <link rel="stylesheet" href="{% static 'css/notifications.css' %}?v=20261114g">
-  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117c">
+  <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=20261117s">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
@@ -156,8 +156,26 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// "Messages" / "Our Concerts" tabs at the top of a chat.
+window.showThreadPane = (pane) => {
+  document.querySelectorAll('.thread-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
+  const chat = pane === 'chat';
+  document.getElementById('thread-messages').hidden = !chat;
+  const bar = document.querySelector('.thread-input-bar');
+  if (bar) bar.hidden = !chat;
+  document.getElementById('thread-concerts').hidden = chat;
+};
+
 function appendMessage(msg) {
   if (document.getElementById(`msg-${msg.id}`)) return; 
+  if (msg.concert && currentConversationId) {
+    // A concert plan or answer: refresh the messages (so the card shows with its buttons) and the
+    // "Our Concerts" list if it's open, without switching tabs.
+    htmx.ajax('GET', `/messages/thread/${currentConversationId}/?part=messages`, { target: '#thread-messages', swap: 'innerHTML' });
+    const panel = document.getElementById('thread-concerts');
+    if (panel && !panel.hidden) htmx.ajax('GET', `/messages/${currentConversationId}/concerts/`, { target: '#thread-concerts', swap: 'innerHTML' });
+    return;
+  }
   const container = document.getElementById("thread-messages");
   if (!container) return;
   const isSent = String(msg.sender_id) === String(currentUserId);
